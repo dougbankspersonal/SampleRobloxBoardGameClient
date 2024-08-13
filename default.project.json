@@ -1,0 +1,96 @@
+{
+  "name": "SFBG",
+	"tree": {
+		"$className": "DataModel",
+
+		"ReplicatedStorage": {
+			"$className": "ReplicatedStorage",
+			"SFBGShared": {
+				"$path": "src/SFBGShared"
+			},
+			"Cryo": {
+				"$path": "../../cryo/default.project.json"
+			},
+			"RobloxBoardGameShared": {
+				"$path": "../../RobloxBoardGame/src/Shared/default.project.json"
+			}
+		},
+
+		"ServerScriptService": {
+			"$className": "ServerScriptService",
+			"SFBGServer": {
+				"$path": "src/SFBGServer"
+			},
+			"RobloxBoardGameServer": {
+				"$path": "../../RobloxBoardGame/src/Server/default.project.json"
+			}
+		},
+
+		"StarterGui": {
+			"$className": "StarterGui",
+			"MainScreenGui": {
+				"$className": "ScreenGui",
+        "SFBGClient": {
+          "$path": "src/SFBGClient"
+        },
+        "RobloxBoardGameStarterGui": {
+          "$path": "../../RobloxBoardGame/src/StarterGui/default.project.json"
+        }
+      }
+    },
+
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "$path": "../../RobloxBoardGame/src/StarterPlayerScripts/default.project.json"
+      }
+    },
+
+    "Workspace": {
+      "$properties": {
+        "FilteringEnabled": true
+      },
+      "Baseplate": {
+        "$className": "Part",
+        "$properties": {
+          "Anchored": true,
+          "Color": [
+            0.88823,
+            0.37254,
+            0.38823
+          ],
+          "Locked": true,
+          "Position": [
+            0,
+            -10,
+            0
+          ],
+          "Size": [
+            512,
+            20,
+            512
+          ]
+        }
+      }
+    },
+    "Lighting": {
+      "$properties": {
+        "Ambient": [
+          0,
+          0,
+          0
+        ],
+        "Brightness": 2,
+        "GlobalShadows": true,
+        "Outlines": false,
+        "Technology": "Voxel"
+      }
+    },
+    "SoundService": {
+      "$properties": {
+        "RespectFilteringEnabled": true
+      }
+    }
+  }
+}
