@@ -7,50 +7,33 @@ There must be a 1-1 mapping between elements in this table and the games in Game
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RobloxBoardGameShared = ReplicatedStorage.RobloxBoardGameShared
 local CommonTypes = require(RobloxBoardGameShared.Types.CommonTypes)
-local GameDetailsDeclaration = require(ReplicatedStorage.SFBGShared.GameDetailsDeclaration)
+local GameDetailsDeclaration = require(ReplicatedStorage.SRBGCShared.GameDetailsDeclaration)
 
 local GameInstanceFunctionsDeclaration = {}
 
-local gameInstanceFunctionsByGameId = {}
+local gameInstanceFunctionsByGameId = {} :: CommonTypes.GameInstanceFunctionsByGameId
 
-local nutsGameInstanceFunctions: CommonTypes.GameInstanceFunctions = {
-    onPlay = function()
-        assert(false, "FIXME(dbanks) Implement nutsGameInstanceFunctions.onPlay")
-    end,
-    onEnd = function()
-        assert(false, "FIXME(dbanks) Implement nutsGameInstanceFunctions.onEnd")
-    end,
-    onPlayerLeft = function(userId: CommonTypes.UserId)
-        assert(false, "FIXME(dbanks) Implement nutsGameInstanceFunctions.onPlayerLeft")
-    end,
-}
-
-gameInstanceFunctionsByGameId = {
-    [GameDetailsDeclaration.nutsGameId] = nutsGameInstanceFunctions,
-} :: CommonTypes.GameInstanceFunctionsByGameId
 
 GameInstanceFunctionsDeclaration.addMockGames = function()
     local gameDetailsByGameId = GameDetailsDeclaration.getGameDetailsByGameId()
 
     for gameId, _ in gameDetailsByGameId do
-        if gameId ~= GameDetailsDeclaration.nutsGameId then
-            local mockGameInstanceFunctions = {
-                onPlay = function()
-                    assert(false, "FIXME(dbanks) Implement mockGame.onPlay")
-                end,
-                onEnd = function()
-                    assert(false, "FIXME(dbanks) Implement mockGame.onEnd")
-                end,
-                onPlayerLeft = function(userId: CommonTypes.UserId)
-                    assert(false, "FIXME(dbanks) Implement mockGame.onPlayerLeft")
-                end,
-            }
-            gameInstanceFunctionsByGameId[gameId] = mockGameInstanceFunctions
-        end
+        local mockGameInstanceFunctions = {
+            onPlay = function()
+                assert(false, "FIXME(dbanks) Implement mockGame.onPlay")
+            end,
+            onEnd = function()
+                assert(false, "FIXME(dbanks) Implement mockGame.onEnd")
+            end,
+            onPlayerLeft = function(userId: CommonTypes.UserId)
+                assert(false, "FIXME(dbanks) Implement mockGame.onPlayerLeft")
+            end,
+        }
+        gameInstanceFunctionsByGameId[gameId] = mockGameInstanceFunctions
     end
 end
 
-GameInstanceFunctionsDeclaration.getGameInstanceFunctionsByGameId = function()
+GameInstanceFunctionsDeclaration.getGameInstanceFunctionsByGameId = function() : CommonTypes.GameInstanceFunctionsByGameId
     return gameInstanceFunctionsByGameId
 end
 

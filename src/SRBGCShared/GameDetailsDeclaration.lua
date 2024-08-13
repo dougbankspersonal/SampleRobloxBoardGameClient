@@ -4,84 +4,62 @@ local CommonTypes = require(RobloxBoardGameShared.Types.CommonTypes)
 
 local GameDetailsDeclaration = {}
 
-GameDetailsDeclaration.nutsGameId = 1
-
-local SquirrelMovementGameOptionVariants =  {
+local mockGame1Variants =  {
     {
         name = "Normal",
-        description = "Stop (5), Hunt (5), Scamper (2)",
+        description = "The normal game variant.",
     },
     {
-        name = "Aggressive",
-        description = "Stop (3), Hunt (7), Scamper (2)",
+        name = "Quick",
+        description = "Game variant for faster play",
     },
     {
-        name = "Random",
-        description = "Stop (4), Hunt (4), Scamper (4)",
-    },
-    {
-        name = "Lazy",
-        description = "Stop (7), Hunt (3), Scamper (2)",
+        name = "Complex",
+        description = "More depth and strategy",
     },
 } :: {CommonTypes.GameOptionVariant}
 
-local nutsGameOptions = {
+local mockGame1Options = {
     {
-        name = "\"Schmoozing\" Expansion",
-        gameOptionId = "Schmooze_boolean",
-        description = "Players attend may gain powerful advantages by bribing the right people.",
+        name = "\"Zombie\" Expansion",
+        gameOptionId = "Zombie_boolean",
+        description = "Adds zombies.",
     },
     {
-        name = "Squirrel Movement Variants",
-        gameOptionId = "Squirrel_variants",
-        description = "Adjust how the squirrel move.",
-        opt_variants = SquirrelMovementGameOptionVariants,
+        name = "Mock Game Variants",
+        gameOptionId = "Game_variants",
+        description = "Select different play modes.",
+        opt_variants = mockGame1Variants,
     },
 } :: {CommonTypes.GameOption}
 
-local nutsGameDetails: CommonTypes.GameDetails = {
-    gameId = GameDetailsDeclaration.nutsGameId,
-    gameImage = "http://www.roblox.com/asset/?id=6253829628",
-    name = "Nuts",
-    description = "Ship nuts, and watch out for that squirrel!.",
-    minPlayers = 2,
-    maxPlayers = 5,
-    gameOptions = nutsGameOptions,
-}
+local gameDetailsByGameId: CommonTypes.GameDetailsByGameId = {}
 
-local gameDetailsByGameId: CommonTypes.GameDetailsByGameId = {
-    [GameDetailsDeclaration.nutsGameId] = nutsGameDetails,
-}
-
-local mockImageIndex = 1
 local mockImages = {
     "http://www.roblox.com/asset/?id=12899280578",
     "http://www.roblox.com/asset/?id=6233948090",
     "http://www.roblox.com/asset/?id=133537141",
+    "http://www.roblox.com/asset/?id=6253829628",
 }
-local getNextMockImage = function()
-    mockImageIndex = math.fmod(mockImageIndex + 1, #mockImages) + 1
-    return mockImages[mockImageIndex]
-end
 
-local mockGameId = GameDetailsDeclaration.nutsGameId + 100
-local function addMockGame()
-    local gameId = mockGameId
-    mockGameId = mockGameId + 1
-    local mockGameDetails = {
-        gameId = mockGameId,
-        gameImage = getNextMockImage(),
-        name = "Mock Game " .. gameId,
-        description = "This is a mock game",
-        minPlayers = 2,
-        maxPlayers = 3,
-    }
-    gameDetailsByGameId[gameId] = mockGameDetails
-end
+local mockGameId = 1000
 
 GameDetailsDeclaration.addMockGames = function()
-    for _ = 1, 10 do
-        addMockGame()
+    for i = 1, #mockImages do
+        local gameId = mockGameId
+        mockGameId = mockGameId + 1
+        local mockGameDetails = {
+            gameId = gameId,
+            gameImage = mockImages[i],
+            name = string.format("Mock Game #%d", i),
+            description = string.format("This is mock game number %d", i),
+            minPlayers = 2,
+            maxPlayers = 2 + i,
+        }
+        if i == 1 then
+            mockGameDetails.gameOptions = mockGame1Options
+        end
+        gameDetailsByGameId[gameId] = mockGameDetails
     end
 end
 

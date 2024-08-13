@@ -1,10 +1,10 @@
 local ReplicatedStorage =  game:GetService("ReplicatedStorage")
 local RobloxBoardGameServer = script.Parent.Parent.RobloxBoardGameServer
 local ServerStartUp = require(RobloxBoardGameServer.StartupFiles.ServerStartUp)
-local GameDetailsDeclaration = require(ReplicatedStorage.SFBGShared.GameDetailsDeclaration)
+local GameDetailsDeclaration = require(ReplicatedStorage.SRBGCShared.GameDetailsDeclaration)
 
-local SFBGServer = script.Parent
-local GameInstanceFunctionsDeclaration = require(SFBGServer.GameInstanceFunctionsDeclaration)
+local SRBGCServer = script.Parent
+local GameInstanceFunctionsDeclaration = require(SRBGCServer.GameInstanceFunctionsDeclaration)
 
 assert(GameDetailsDeclaration.getGameDetailsByGameId() ~= nil, ", GameDetailsDeclaration.getGameDetailsByGameId() is nil")
 assert(GameInstanceFunctionsDeclaration.getGameInstanceFunctionsByGameId() ~= nil, "GameDetailsDeclaration.getGameInstanceFunctionsByGameId() is nil")

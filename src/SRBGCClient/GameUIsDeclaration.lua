@@ -7,37 +7,24 @@ There must be a 1-1 mapping between elements in this table and the games in Game
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RobloxBoardGameShared = ReplicatedStorage.RobloxBoardGameShared
 local CommonTypes = require(RobloxBoardGameShared.Types.CommonTypes)
-local GameDetailsDeclaration = require(ReplicatedStorage.SFBGShared.GameDetailsDeclaration)
+local GameDetailsDeclaration = require(ReplicatedStorage.SRBGCShared.GameDetailsDeclaration)
 
 local GameUIsDeclaration = {}
 
-local gameUIsByGameId = {}
-
-local nutsGameUIs: CommonTypes.GameUIs = {
-    -- FIXME(dbanks) resolve and add functions needed here.
-    setupUI = function()
-        assert(false, "FIXME(dbanks) Implement nutsGameUIs.setupUI")
-    end,
-}
-
-gameUIsByGameId = {
-    [GameDetailsDeclaration.nutsGameId] = nutsGameUIs,
-} :: CommonTypes.GameUIsByGameId
+local gameUIsByGameId = {} :: CommonTypes.GameUIsByGameId
 
 GameUIsDeclaration.addMockGames = function()
     for gameId, _ in GameDetailsDeclaration.getGameDetailsByGameId() do
-        if gameId ~= GameDetailsDeclaration.nutsGameId then
-            local mockGameUIs = {
-                setupUI = function()
-                    assert(false, "FIXME(dbanks) Implement mockGameUIs.setupUI")
-                end,
-            }
-            gameUIsByGameId[gameId] = mockGameUIs
-        end
+        local mockGameUIs = {
+            setupUI = function()
+                assert(false, "FIXME(dbanks) Implement mockGameUIs.setupUI")
+            end,
+        }
+        gameUIsByGameId[gameId] = mockGameUIs
     end
 end
 
-GameUIsDeclaration.getGameUIsByGameId = function()
+GameUIsDeclaration.getGameUIsByGameId = function() : CommonTypes.GameUIsByGameId
     return gameUIsByGameId
 end
 

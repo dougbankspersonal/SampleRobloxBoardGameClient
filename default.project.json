@@ -1,28 +1,28 @@
 {
-  "name": "SFBG",
+  "name": "SRBGC",
 	"tree": {
 		"$className": "DataModel",
 
 		"ReplicatedStorage": {
 			"$className": "ReplicatedStorage",
-			"SFBGShared": {
-				"$path": "src/SFBGShared"
+			"SRBGCShared": {
+				"$path": "src/SRBGCShared"
 			},
 			"Cryo": {
-				"$path": "../../cryo/default.project.json"
+				"$path": "../cryo/default.project.json"
 			},
 			"RobloxBoardGameShared": {
-				"$path": "../../RobloxBoardGame/src/Shared/default.project.json"
+				"$path": "../RobloxBoardGame/src/Shared/default.project.json"
 			}
 		},
 
 		"ServerScriptService": {
 			"$className": "ServerScriptService",
-			"SFBGServer": {
-				"$path": "src/SFBGServer"
+			"SRBGCServer": {
+				"$path": "src/SRBGCServer"
 			},
 			"RobloxBoardGameServer": {
-				"$path": "../../RobloxBoardGame/src/Server/default.project.json"
+				"$path": "../RobloxBoardGame/src/Server/default.project.json"
 			}
 		},
 
@@ -30,11 +30,11 @@
 			"$className": "StarterGui",
 			"MainScreenGui": {
 				"$className": "ScreenGui",
-        "SFBGClient": {
-          "$path": "src/SFBGClient"
+        "SRBGCClient": {
+          "$path": "src/SRBGCClient"
         },
         "RobloxBoardGameStarterGui": {
-          "$path": "../../RobloxBoardGame/src/StarterGui/default.project.json"
+          "$path": "../RobloxBoardGame/src/StarterGui/default.project.json"
         }
       }
     },
@@ -43,7 +43,7 @@
       "$className": "StarterPlayer",
       "StarterPlayerScripts": {
         "$className": "StarterPlayerScripts",
-        "$path": "../../RobloxBoardGame/src/StarterPlayerScripts/default.project.json"
+        "$path": "../RobloxBoardGame/src/StarterPlayerScripts/default.project.json"
       }
     },
 
@@ -56,9 +56,9 @@
         "$properties": {
           "Anchored": true,
           "Color": [
-            0.88823,
-            0.37254,
-            0.38823
+            0.2,
+            0.3,
+            0.4
           ],
           "Locked": true,
           "Position": [
