@@ -5,46 +5,37 @@
 
 		"ReplicatedStorage": {
 			"$className": "ReplicatedStorage",
+      "$ignoreUnknownInstances": true,
+
 			"SRBGCShared": {
 				"$path": "src/SRBGCShared"
-			},
-			"Cryo": {
-				"$path": "../cryo/default.project.json"
-			},
-			"RobloxBoardGameShared": {
-				"$path": "../RobloxBoardGame/src/Shared/default.project.json"
 			}
 		},
 
 		"ServerScriptService": {
 			"$className": "ServerScriptService",
+      "$ignoreUnknownInstances": true,
+
 			"SRBGCServer": {
 				"$path": "src/SRBGCServer"
-			},
-			"RobloxBoardGameServer": {
-				"$path": "../RobloxBoardGame/src/Server/default.project.json"
 			}
 		},
 
 		"StarterGui": {
 			"$className": "StarterGui",
+      "$ignoreUnknownInstances": true,
+
 			"MainScreenGui": {
 				"$className": "ScreenGui",
         "SRBGCClient": {
           "$path": "src/SRBGCClient"
-        },
-        "RobloxBoardGameStarterGui": {
-          "$path": "../RobloxBoardGame/src/StarterGui/default.project.json"
         }
       }
     },
 
     "StarterPlayer": {
       "$className": "StarterPlayer",
-      "StarterPlayerScripts": {
-        "$className": "StarterPlayerScripts",
-        "$path": "../RobloxBoardGame/src/StarterPlayerScripts/default.project.json"
-      }
+      "$ignoreUnknownInstances": true
     },
 
     "Workspace": {
