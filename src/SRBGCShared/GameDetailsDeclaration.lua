@@ -4,7 +4,7 @@ local CommonTypes = require(RobloxBoardGameShared.Types.CommonTypes)
 
 local GameDetailsDeclaration = {}
 
-local mockGame1Variants =  {
+local mockRulesVariants =  {
     {
         name = "Normal",
         description = "The normal game variant.",
@@ -19,19 +19,43 @@ local mockGame1Variants =  {
     },
 } :: {CommonTypes.GameOptionVariant}
 
-local mockGame1Options = {
+local mockColorVariants = {
     {
-        name = "\"Zombie\" Expansion",
-        gameOptionId = "Zombie_boolean",
-        description = "Adds zombies.",
+        name = "Red",
+        description = "Like a cherry.",
     },
     {
-        name = "Mock Game Variants",
-        gameOptionId = "Game_variants",
-        description = "Select different play modes.",
-        opt_variants = mockGame1Variants,
+        name = "Green",
+        description = "Grass is green",
     },
-} :: {CommonTypes.GameOption}
+    {
+        name = "Blue",
+        description = "Azul in Spanish",
+    },
+}
+
+local mockGameOptions = {
+    {
+        name = "\"Alpha\" Expansion",
+        gameOptionId = "Alpha_boolean",
+        description = "The \"Alpha\" expansion introduces auctions and agendas.",
+    },
+    {
+        name = "\"Bravo\" Expansion",
+        gameOptionId = "Bravo_boolean",
+        description = "The \"Bravo\" expansion introduces trade and guilds.",
+    },
+    {
+        name = "Rules Variants",
+        gameOptionId = "Rules_Variants",
+        opt_variants = mockRulesVariants,
+    },
+    {
+        name = "Color Schemes",
+        gameOptionId = "Color_Schemes",
+        opt_variants = mockColorVariants,
+    },
+}
 
 local gameDetailsByGameId: CommonTypes.GameDetailsByGameId = {}
 
@@ -42,23 +66,46 @@ local mockImages = {
     "http://www.roblox.com/asset/?id=6253829628",
 }
 
+local mockNames = {
+    "Zombies",
+    "Cupcake Aventure",
+    "Cosmic Encounter",
+    "Illuminati",
+    "Settlers of Catan",
+    "Monopoly",
+    "Risk",
+    "Clue",
+    "Sagrada",
+    "Betrayal at the House on the Hill",
+    "Mansions of Madness",
+    "Telestrations",
+    "Pictionary",
+    "Carcassonne",
+    "Ticket to Ride",
+    "Scrabble",
+    "Battleship",
+    "Connect Four",
+    "Chess",
+    "Checkers",
+    "Go",
+    "Backgammon",
+}
+
 local mockGameId = 1000
 
 GameDetailsDeclaration.addMockGames = function()
-    for i = 1, #mockImages do
+    for i = 1, #mockNames do
         local gameId = mockGameId
         mockGameId = mockGameId + 1
         local mockGameDetails = {
             gameId = gameId,
-            gameImage = mockImages[i],
-            name = string.format("Mock Game #%d", i),
+            gameImage = mockImages[i % #mockImages + 1],
+            name = mockNames[i],
             description = string.format("This is mock game number %d", i),
             minPlayers = 2,
-            maxPlayers = 2 + i,
+            maxPlayers = 2 + (i % 6 + 1),
         }
-        if i == 1 then
-            mockGameDetails.gameOptions = mockGame1Options
-        end
+        mockGameDetails.gameOptions = mockGameOptions
         gameDetailsByGameId[gameId] = mockGameDetails
     end
 end
