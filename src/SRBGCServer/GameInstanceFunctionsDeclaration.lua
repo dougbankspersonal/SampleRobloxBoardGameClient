@@ -20,13 +20,13 @@ GameInstanceFunctionsDeclaration.addMockGames = function()
     for gameId, _ in gameDetailsByGameId do
         local mockGameInstanceFunctions = {
             onPlay = function()
-                assert(false, "FIXME(dbanks) Implement mockGame.onPlay")
+                print("Mock game is playing")
             end,
             onEnd = function()
-                assert(false, "FIXME(dbanks) Implement mockGame.onEnd")
+                print("Mock game is ended")
             end,
             onPlayerLeft = function(userId: CommonTypes.UserId)
-                assert(false, "FIXME(dbanks) Implement mockGame.onPlayerLeft")
+                print("Player left mock game")
             end,
         }
         gameInstanceFunctionsByGameId[gameId] = mockGameInstanceFunctions
