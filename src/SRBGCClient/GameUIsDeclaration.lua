@@ -6,10 +6,14 @@ There must be a 1-1 mapping between elements in this table and the games in Game
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- RBGBoardGameShared
+-- RobloxBoardGameShared
 local RobloxBoardGameShared = ReplicatedStorage.RobloxBoardGameShared
 local CommonTypes = require(RobloxBoardGameShared.Types.CommonTypes)
-local Utils = require(RobloxBoardGameShared.Modules     .Utils)
+local Utils = require(RobloxBoardGameShared.Modules.Utils)
+
+-- SRBGCClient
+local SRBGCClient = script.Parent
+local GameUI = require(SRBGCClient.MockGame.GameUI)
 
 local GameDetailsDeclaration = require(ReplicatedStorage.SRBGCShared.GameDetailsDeclaration)
 
@@ -19,9 +23,9 @@ local gameUIsByGameId = {} :: CommonTypes.GameUIsByGameId
 
 GameUIsDeclaration.addMockGames = function()
     for gameId, _ in GameDetailsDeclaration.getGameDetailsByGameId() do
-        local mockGameUIs = {
-            build = function()
-                Utils.debugPrint("TablePlaying", "Doug: in mock build")
+        local GameUIs = {
+            build = function(parentFrame: Frame, tableDescription: CommonTypes.TableDescription)
+                GameUI.build(parentFrame, tableDescription)
             end,
             destroy = function()
                 Utils.debugPrint("TablePlaying", "Doug: in mock destroy")
@@ -30,7 +34,7 @@ GameUIsDeclaration.addMockGames = function()
                 Utils.debugPrint("TablePlaying", "Doug: in mock handlePlayerLeftGame")
             end,
         }
-        gameUIsByGameId[gameId] = mockGameUIs
+        gameUIsByGameId[gameId] = GameUIs
     end
 end
 

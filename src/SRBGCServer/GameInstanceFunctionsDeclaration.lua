@@ -5,23 +5,29 @@ There must be a 1-1 mapping between elements in this table and the games in Game
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- RobloxBoardGameShared
 local RobloxBoardGameShared = ReplicatedStorage.RobloxBoardGameShared
 local CommonTypes = require(RobloxBoardGameShared.Types.CommonTypes)
-local GameDetailsDeclaration = require(ReplicatedStorage.SRBGCShared.GameDetailsDeclaration)
+
+-- SRBGCShared
+local SRBGCShared = ReplicatedStorage.SRBGCShared
+local GameDetailsDeclaration = require(SRBGCShared.GameDetailsDeclaration)
+
+-- SRBGCServer
+local SRBGCServer = script.Parent
+local GameStartup = require(SRBGCServer.Modules.MockGame.GameStartup)
 
 local GameInstanceFunctionsDeclaration = {}
 
 local gameInstanceFunctionsByGameId = {} :: CommonTypes.GameInstanceFunctionsByGameId
-
 
 GameInstanceFunctionsDeclaration.addMockGames = function()
     local gameDetailsByGameId = GameDetailsDeclaration.getGameDetailsByGameId()
 
     for gameId, _ in gameDetailsByGameId do
         local mockGameInstanceFunctions = {
-            onPlay = function()
-                print("Mock game is playing")
-            end,
+            onPlay = GameStartup.onPlay,
             onEnd = function()
                 print("Mock game is ended")
             end,
