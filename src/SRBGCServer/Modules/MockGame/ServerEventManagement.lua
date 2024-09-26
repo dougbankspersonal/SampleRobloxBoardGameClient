@@ -7,92 +7,65 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RobloxBoardGameShared = ReplicatedStorage.RobloxBoardGameShared
 local CommonTypes = require(RobloxBoardGameShared.Types.CommonTypes)
 
+-- Server
+local RobloxBoardGameServer = script.Parent.Parent.Parent.Parent.RobloxBoardGameServer
+local ServerEventUtils = require(RobloxBoardGameServer.Modules.ServerEventUtils)
+
 -- SRBGCShared
 local SRBGCShared = ReplicatedStorage.SRBGCShared
-local GameUtils = require(SRBGCShared.Modules.GameUtils)
+local GameTypes = require(SRBGCShared.Modules.MockGame.GameTypes)
 
 -- SRBGCServer
 local SRBGCServer = script.Parent.Parent.Parent
-local GameInstance = require(SRBGCServer.Modules.MockGame.GameInstance)
+local ServerTypes = require(SRBGCServer.Modules.MockGame.ServerTypes)
+local ServerGameInstanceStorage = require(SRBGCServer.Modules.MockGame.ServerGameInstanceStorage)
 
 local ServerEventManagement = {}
 
--- Notify these players of this event.
-local function sendEventForPlayers(event: RemoteEvent, players: {Players}, ...)
-    assert(event, "Event not found")
-    for _, player in ipairs(players) do
-        event:FireClient(player, ...)
-    end
-end
-
-local function getOrMakeFolderForGameEvents(setGameInstanceGUID: CommonTypes.setGameInstanceGUID): Folder
-    local folderName = GameUtils.getGameEventFolderName(setGameInstanceGUID)
-    local folder = ReplicatedStorage:FindFirstChild(folderName)
-    if folder then
-        assert(folder:IsA("Folder"), "Expected folder, got " .. folder.ClassName)
-    else
-        folder = Instance.new("Folder")
-        folder.Name = folderName
-        folder.Parent = ReplicatedStorage
-    end
-    return folder
-end
-
---[[
-Adding a remote event on server.
-If no folder with given name, make one.
-Make event with given name and handler.
-]]
-local function createRemoteEvent(setGameInstanceGUID: CommonTypes.setGameInstanceGUID, eventName: string, opt_onServerEvent)
-    local folder = getOrMakeFolderForGameEvents(setGameInstanceGUID)
-    local event = Instance.new("RemoteEvent")
-    event.Name = eventName
-    event.Parent = folder
-    if opt_onServerEvent then
-        event.OnServerEvent:Connect(opt_onServerEvent)
-    end
-end
-
-local function sendEventForPlayersInGame(gameInstance: GameInstance.GameInstance, eventName: string, ...)
-    local folder = getOrMakeFolderForGameEvents(gameInstance:getGUID())
-    assert(folder, "Folder not found")
-    local players = gameInstance:getPlayers()
-    local event = folder:FindFirstChild(eventName)
-    assert(event, "Event not found")
-    sendEventForPlayers(event, players, ...)
-end
-
-ServerEventManagement.broadcastGameState = function(gameInstance:GameInstance.GameInstance, opt_actionDescription: GameTypes.ActionDescription)
-    local gameState = gameInstance:getGameState()
-    sendEventForPlayersInGame(gameInstance, "GameUpdated", gameState, opt_actionDescription)
+ServerEventManagement.broadcastGameState = function(serverGameInstance:ServerTypes.ServerGameInstance, opt_actionDescription: GameTypes.ActionDescription?)
+    local gameState = serverGameInstance:getGameState()
+    ServerEventUtils.sendEventForPlayersInGame(serverGameInstance, "GameUpdated", gameState, opt_actionDescription)
 end
 
 --[[
 Startup Function making all the events where client sends to server.
 ]]
-ServerEventManagement.setupGameInstanceEvents = function(gameInstanceGUID: CommonTypes.GameInstanceGUID)
-    -- Events sent from client to server.
-    -- Event to create a new table.
-    createRemoteEvent(gameInstanceGUID, "RollDie", function(player: Player, userId: CommonTypes.UserId)
+ServerEventManagement.setupGameInstanceEventsAndFunctions = function(gameInstanceGUID: CommonTypes.GameInstanceGUID)
+    -- Remote function to fetch game state.
+    ServerEventUtils.createGameRemoteFunction(gameInstanceGUID, "GetGameState", function(player: Player): GameTypes.GameState
+        local gameInstance = ServerGameInstanceStorage.getServerGameInstance(gameInstanceGUID)
+        if not gameInstance then
+            return nil
+        end
+        if not gameInstance:isPlayerInGame(player.UserId) then
+            return nil
+        end
+        local gameState = gameInstance:getGameState()
+        return gameState
+    end)
+
+    ServerEventUtils.createGameRemoteEvent(gameInstanceGUID, "RollDie", function(player: Player, dieType: GameTypes.DieType)
         -- add the logic for die roll here.
-        local gameInstance = GameInstance.getGameInstance(gameInstanceGUID)
+        local gameInstance = ServerGameInstanceStorage.getServerGameInstance(gameInstanceGUID)
         assert(gameInstance, "Game instance not found for " .. gameInstanceGUID)
-        local result = gameInstance:rollDie(userId)
-        local actionDescrition = {
-            userId = userId,
-            action = "RollDie",
-            result = result,
-        }
-        ServerEventManagement.broadcastGameState(gameInstance, actionDescrition)
+        local currentPlayerUserId = gameInstance:getCurrentPlayerUserId()
+        if not gameInstance:isPlayerInGame(player.UserId) then
+            return nil
+        end
+
+        local success, result = gameInstance:rollDie(player.UserId, dieType)
+        if success then
+            local actionDescrition = {
+                userId = currentPlayerUserId,
+                action = "RollDie",
+                result = result,
+            }
+            ServerEventManagement.broadcastGameState(gameInstance, actionDescrition)
+        end
     end)
 
     -- Events sent from server to client.
-    -- Notification that a new table was created.
-    createRemoteEvent(gameInstanceGUID, "GameUpdated")
+    ServerEventUtils.createGameRemoteEvent(gameInstanceGUID, "GameUpdated")
 end
-
-ServerEventManagement.createServerToClientEvents = function(gameInstanceGUID: CommonTypes.GameInstanceGUID)
-end
-
 
 return ServerEventManagement

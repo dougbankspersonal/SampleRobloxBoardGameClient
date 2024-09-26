@@ -3,88 +3,43 @@ Client side event management: listening to events from the server, sending event
 ]]
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- Shared
+-- RobloxBoardGameShared
 local RobloxBoardGameShared = ReplicatedStorage.RobloxBoardGameShared
 local CommonTypes = require(RobloxBoardGameShared.Types.CommonTypes)
+local EventUtils = require(RobloxBoardGameShared.Modules.EventUtils)
+
+-- SRBGCShared
+local SRBGCShared = ReplicatedStorage.SRBGCShared
+local GameTypes = require(SRBGCShared.Modules.MockGame.GameTypes)
+local GameState= require(SRBGCShared.Modules.MockGame.GameState)
+
 
 local ClientEventManagement = {}
 
-local gameEvents = ReplicatedStorage:WaitForChild("GameEvents")
-if not gameEvents then
-    assert(false, "GameEvents missing")
-    return
-end
-local gameFunctions = ReplicatedStorage:WaitForChild("GameFunctions")
-if not gameFunctions then
-    assert(false, "GameFunctions missing")
-    return
+-- Called on startup, get the initial game state.
+ClientEventManagement.getGameStateAsync = function(gameInstanceGUID: CommonTypes.GameInstanceGUID): GameTypes.GameState
+    local getGameStateRemoteFunc = EventUtils.getRemoteFunctionForGame(gameInstanceGUID, "GetGameState")
+    assert(getGameStateRemoteFunc, "GetGameState remote function missing")
+    local raw_gameState = getGameStateRemoteFunc:InvokeServer()
+    local clean_gameState = GameState.sanitizeGameState(raw_gameState)
+    return clean_gameState
 end
 
-ClientEventManagement.listenToServerEvents = function(onTableCreated: (tableDescription: CommonTypes.TableDescription) -> nil,
-    onTableDestroyed: (tableId: CommonTypes.TableId) -> nil,
-    onTableUpdated: (tableDescription: CommonTypes.TableDescription) -> nil,
-    onHostAbortedGame: (tableId: CommonTypes.TableId) -> nil,
-    onPlayerLeftTable: (tableId: CommonTypes.TableId, userId: CommonTypes.UserId) -> nil)
-
-    assert(onTableCreated, "tableCreated must be provided")
-    assert(onTableDestroyed, "tableDestroyed must be provided")
-    assert(onTableUpdated, "tableUpdated must be provided")
-
-    local event
-    event = gameEvents:WaitForChild("TableCreated")
-    assert(event, "TableCreated event missing")
-    event.OnClientEvent:Connect(function(...)
-        onTableCreated(...)
+ClientEventManagement.listenToServerEvents = function(gameInstanceGUID: CommonTypes.GameInstanceGUID, onGameStateUpdated: (GameTypes.GameState, GameTypes.ActionDescription?) -> ())
+    -- When server tells us about new state call this function.
+    local event = EventUtils.getRemoteEventForGame(gameInstanceGUID, "GameUpdated")
+    assert(event, "GameUpdated event missing")
+    event.OnClientEvent:Connect(function(raw_gameState: GameTypes.GameState, opt_actionDescriotion: GameTypes.ActionDescription?)
+        local clean_gameState = GameState.sanitizeGameState(raw_gameState)
+        onGameStateUpdated(clean_gameState, opt_actionDescriotion)
     end)
-
-    event = gameEvents:WaitForChild("TableDestroyed")
-    assert(event, "TableDestroyed event missing")
-    event.OnClientEvent:Connect(onTableDestroyed)
-
-    event = gameEvents:WaitForChild("TableUpdated")
-    assert(event, "TableUpdated event missing")
-    event.OnClientEvent:Connect(onTableUpdated)
-
-    event = gameEvents:WaitForChild("HostAbortedGame")
-    assert(event, "HostAbortedGame event missing")
-    event.OnClientEvent:Connect(onHostAbortedGame)
-
-    event = gameEvents:WaitForChild("PlayerLeftTable")
-    assert(event, "PlayerLeftTable event missing")
-    event.OnClientEvent:Connect(onPlayerLeftTable)
 end
 
-local gameInstanceGUID = nil
-ClientEventManagement.setGameInstanceGUID = function(_gameInstanceGUID: string)
-    assert(_gameInstanceGUID, "setGameInstanceGUID must be provided")
-    gameInstanceGUID = _gameInstanceGUID
-end
-
-ClientEventManagement.clearsetGameInstanceGUID = function()
-    gameInstanceGUID = nil
-end
-
-ClientEventManagement.getEventFolderForCurrentGame = function(): Folder
-    assert(gameInstanceGUID, "setGameInstanceGUID must be set")
-    local folderName = "GameEvents_" .. gameInstanceGUID
-    local folder = ReplicatedStorage:WaitForChild(folderName)
-    assert(folder, "Folder not found: " .. folderName)
-    return folder
-end
-
-ClientEventManagement.getEventForCurrentGame = function(eventName: string): RemoteEvent
-    local folder = ClientEventManagement.getEventFolderForCurrentGame()
-    local event = folder:WaitForChild(eventName)
-    assert(event, "Event not found: " .. eventName)
-    return event
-end
-
-ClientEventManagement.requestRollDie = function(userId: CommonTypes.UserId)
-    local event = ClientEventManagement.getEventForCurrentGame("RollDie")
+-- Tell the server this party wants to roll the die.
+ClientEventManagement.requestRollDie = function(gameInstanceGUID: CommonTypes.GameInstanceGUID, dieType: GameTypes.DieType)
+    local event = EventUtils.getRemoteEventForGame(gameInstanceGUID, "RollDie")
     assert(event, "RollDie event missing")
-    event:FireServer(userId)
+    event:FireServer(dieType)
 end
-
-
 
 return ClientEventManagement

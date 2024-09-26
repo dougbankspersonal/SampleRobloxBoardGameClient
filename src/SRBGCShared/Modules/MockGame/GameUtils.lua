@@ -11,11 +11,7 @@ local DieTypes = require(SRBGCShared.Modules.MockGame.DieTypes)
 
 local GameUtils = {}
 
-GameUtils.getGameEventFolderName = function(gameInstanceGUID: CommonTypes.GameInstanceGUID): string
-    return "GameEvents_" .. gameInstanceGUID
-end
-
-GameUtils.firstUserCanPlayAsSecondUser = function(tableDescription: CommonTypes.TableDescription, userId: CommonTypes.UserId, currentPlayerUserId:CommonTypes.UserId): boolean
+function GameUtils.firstUserCanPlayAsSecondUser(tableDescription: CommonTypes.TableDescription, userId: CommonTypes.UserId, currentPlayerUserId:CommonTypes.UserId): boolean
     -- Better be a member of the game.
     assert(userId, "userId is nil")
     assert(currentPlayerUserId, "userId is nil")
@@ -33,7 +29,7 @@ GameUtils.firstUserCanPlayAsSecondUser = function(tableDescription: CommonTypes.
     return false
 end
 
-GameUtils.getDieName = function(dieType: GameTypes.DieType): string
+function GameUtils.getDieName(dieType: GameTypes.DieType): string
     if dieType == DieTypes.Standard then
         return "Standard"
     elseif dieType == DieTypes.Smushed then
@@ -43,6 +39,15 @@ GameUtils.getDieName = function(dieType: GameTypes.DieType): string
     else
         error("Unknown die type: " .. dieType)
     end
+end
+
+function GameUtils.getCurrentPlayerUserI(gameState: GameTypes.GameState): CommonTypes.UserId
+    assert(gameState, "gameState is nil")
+    assert(gameState.playerIdsInTurnOrder, "playerIdsInTurnOrder is nil")
+    assert(gameState.currentPlayerIndex, "currentPlayerIndex is nil")
+    assert(gameState.playerIdsInTurnOrder[gameState.currentPlayerIndex], "playerIdsInTurnOrder[currentPlayerIndex] is nil")
+
+    return gameState.playerIdsInTurnOrder[gameState.currentPlayerIndex]
 end
 
 return GameUtils

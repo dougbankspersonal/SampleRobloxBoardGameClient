@@ -4,56 +4,16 @@ local CommonTypes = require(RobloxBoardGameShared.Types.CommonTypes)
 
 local GameDetailsDeclaration = {}
 
-local mockRulesVariants =  {
-    {
-        name = "Normal",
-        description = "The normal game variant.",
-    },
-    {
-        name = "Quick",
-        description = "Game variant for faster play",
-    },
-    {
-        name = "Complex",
-        description = "More depth and strategy",
-    },
-} :: {CommonTypes.GameOptionVariant}
-
-local mockColorVariants = {
-    {
-        name = "Red",
-        description = "Like a cherry.",
-    },
-    {
-        name = "Green",
-        description = "Grass is green",
-    },
-    {
-        name = "Blue",
-        description = "Azul in Spanish",
-    },
-}
-
 local mockGameOptions = {
     {
-        name = "\"Alpha\" Expansion",
-        gameOptionId = "Alpha_boolean",
-        description = "The \"Alpha\" expansion introduces auctions and agendas.",
+        name = "Disable the Advatange Die",
+        gameOptionId = "No_Advantage_Die",
+        description = "Players cannot opt to roll the advantage die.",
     },
     {
-        name = "\"Bravo\" Expansion",
-        gameOptionId = "Bravo_boolean",
-        description = "The \"Bravo\" expansion introduces trade and guilds.",
-    },
-    {
-        name = "Rules Variants",
-        gameOptionId = "Rules_Variants",
-        opt_variants = mockRulesVariants,
-    },
-    {
-        name = "Color Schemes",
-        gameOptionId = "Color_Schemes",
-        opt_variants = mockColorVariants,
+        name = "Evaluate Game End at the End of Round",
+        gameOptionId = "Evalaute_At_End_Of_Round",
+        description = "Wait until a round is over until evaluating the game end",
     },
 }
 

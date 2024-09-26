@@ -33,8 +33,8 @@
         "SRBGCClient": {
           "$path": "src/SRBGCClient"
         },
-        "RobloxBoardGameStarterGui": {
-          "$path": "../RobloxBoardGame/src/StarterGui/default.project.json"
+        "RobloxBoardGameClient": {
+          "$path": "../RobloxBoardGame/src/Client/default.project.json"
         }
       }
     },

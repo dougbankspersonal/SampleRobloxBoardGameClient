@@ -4,15 +4,15 @@ local ServerStartUp = require(RobloxBoardGameServer.StartupFiles.ServerStartUp)
 local GameDetailsDeclaration = require(ReplicatedStorage.SRBGCShared.GameDetailsDeclaration)
 
 local SRBGCServer = script.Parent
-local GameInstanceFunctionsDeclaration = require(SRBGCServer.GameInstanceFunctionsDeclaration)
+local ServerGameInstanceConstructorsDeclaration = require(SRBGCServer.ServerGameInstanceConstructorsDeclaration)
 
 assert(GameDetailsDeclaration.getGameDetailsByGameId() ~= nil, ", GameDetailsDeclaration.getGameDetailsByGameId() is nil")
-assert(GameInstanceFunctionsDeclaration.getGameInstanceFunctionsByGameId() ~= nil, "GameDetailsDeclaration.getGameInstanceFunctionsByGameId() is nil")
+assert(ServerGameInstanceConstructorsDeclaration.getServerGameInstanceConstructorsByGameId() ~= nil, "ServerGameInstanceConstructorsDeclaration.getServerGameInstanceConstructorsByGameId() is nil")
 
 GameDetailsDeclaration.addMockGames()
-GameInstanceFunctionsDeclaration.addMockGames()
+ServerGameInstanceConstructorsDeclaration.addMockGames()
 
 local gameDetailsByGameId = GameDetailsDeclaration.getGameDetailsByGameId()
-local gameInstanceFunctionsByGameId = GameInstanceFunctionsDeclaration.getGameInstanceFunctionsByGameId()
+local serverGameInstanceConstructorsByGameId = ServerGameInstanceConstructorsDeclaration.getServerGameInstanceConstructorsByGameId()
 
-ServerStartUp.ServerStartUp(gameDetailsByGameId, gameInstanceFunctionsByGameId)
+ServerStartUp.ServerStartUp(gameDetailsByGameId, serverGameInstanceConstructorsByGameId)
