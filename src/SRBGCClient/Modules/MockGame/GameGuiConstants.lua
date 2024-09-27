@@ -1,0 +1,3 @@
+local GameGuiConstants = {}
+
+return GameGuiConstants

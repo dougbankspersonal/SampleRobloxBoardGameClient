@@ -22,19 +22,20 @@ export type DieTypes = {
 
 export type ActionType = number
 export type ActionTypes = {
-    RollDie: ActionType,
+    DieRoll: ActionType,
 }
 
-export type DieRollActionDetails = {
+export type ActionDetailsDieRoll = {
     dieType: DieType,
     rollResult: number,
 }
 
--- If there were other action types, or them together here.
-export type ActionDetails = DieRollActionDetails
+-- If there were other action types, 'or' them together here.
+export type ActionDetails = ActionDetailsDieRoll
 
 export type ActionDescription = {
     actionType: ActionType,
+    actorUserId: CommonTypes.UserId,
     actionDetails: ActionDetails,
 }
 

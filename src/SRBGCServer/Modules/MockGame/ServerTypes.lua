@@ -12,7 +12,6 @@ local ServerTypes = {}
 
 export type ServerGameInstance = {
     -- members
-    gameInstanceGUID: CommonTypes.GameInstanceGUID,
     tableDescription: CommonTypes.TableDescription,
     gameState: GameTypes.GameState,
 
@@ -27,11 +26,12 @@ export type ServerGameInstance = {
     getCurrentPlayerUserId: (ServerGameInstance) -> CommonTypes.UserId,
     isPlayerInGame: (ServerGameInstance, CommonTypes.UserId) -> boolean,
     getGameOptions: (ServerGameInstance) -> CommonTypes.NonDefaultGameOptions,
+    sanityCheck: (ServerGameInstance) -> nil,
 
     -- non-const functions.  Each returns true iff something changed.
     -- user rolls a die.  Game state changes. Return the value they rolled.
-    rollDie: (ServerGameInstance, CommonTypes.UserId, GameTypes.DieType) -> (boolean, number),
-    checkForWinner: (ServerGameInstance, CommonTypes.UserId) ->  nil,
+    dieRoll: (ServerGameInstance, CommonTypes.UserId, GameTypes.DieType) -> (boolean, GameTypes.ActionDescription?),
+    checkForEndGame: (ServerGameInstance) -> boolean,
 
     -- The functions any ServerGameInstance needs to implement to work with RBG library.
     new: (gameInstanceGUID: CommonTypes.GameInstanceGUID, tableDescription: CommonTypes.TableDescription) -> ServerGameInstance,

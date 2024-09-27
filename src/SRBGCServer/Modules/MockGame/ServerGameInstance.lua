@@ -8,6 +8,7 @@ local Cryo = require(ReplicatedStorage.Cryo)
 -- RobloxBoardGameShared
 local RobloxBoardGameShared = ReplicatedStorage.RobloxBoardGameShared
 local CommonTypes = require(RobloxBoardGameShared.Types.CommonTypes)
+local TableDescription = require(RobloxBoardGameShared.Modules.TableDescription)
 local Utils = require(RobloxBoardGameShared.Modules.Utils)
 
 -- SRBGCShared
@@ -15,6 +16,8 @@ local SRBGCShared = ReplicatedStorage.SRBGCShared
 local GameTypes = require(SRBGCShared.Modules.MockGame.GameTypes)
 local DieTypes = require(SRBGCShared.Modules.MockGame.DieTypes)
 local GameUtils = require(SRBGCShared.Modules.MockGame.GameUtils)
+local GameState = require(SRBGCShared.Modules.MockGame.GameState)
+local ActionTypes = require(SRBGCShared.Modules.MockGame.ActionTypes)
 
 -- SRBGCServer
 local SRBGCServer = script.Parent.Parent.Parent
@@ -27,27 +30,22 @@ local maxScore = 50
 local ServerGameInstance = {}
 ServerGameInstance.__index = ServerGameInstance
 
-local function createNewGameState(tableDescription: CommonTypes.TableDescription): GameTypes.GameState
-    local gameState = {}
-
-    gameState.scoresByUserId = {}
-    Utils.debugPrint("Mocks", "createNewGameState tableDescription.memberUserIds", tableDescription.memberUserIds)
-    for userId, _ in pairs(tableDescription.memberUserIds) do
-        gameState.scoresByUserId[userId] = 0
-    end
-
-    gameState.playerIdsInTurnOrder = Cryo.Dictionary.keys(tableDescription.memberUserIds)
-    gameState.playerIdsInTurnOrder = Utils.randomizeArray(gameState.playerIdsInTurnOrder)
-    gameState.currrentPlayerTurnIndex = 1
-
-    gameState.opt_winnerUserId = nil
-
-    return gameState
+local function makeDieRollActionDescription(actorUserId: CommonTypes.UserId, dieType: GameTypes.DieType, dieRoll: number): GameTypes.ActionDescription
+    local dieRollDetails: GameTypes.ActionDetailsDieRoll     = {
+        dieType = dieType,
+        rollResult = dieRoll
+    }
+    local actionDescription: GameTypes.ActionDescription = {
+        actionType = ActionTypes.DieRoll,
+        actorUserId = actorUserId,
+        actionDetails = dieRollDetails
+    }
+    return actionDescription
 end
 
+
 ServerGameInstance.new = function(tableDescription: CommonTypes.TableDescription): ServerTypes.ServerGameInstance
-    assert(tableDescription, "tableDescription is nil")
-    assert(tableDescription.gameInstanceGUID, "tableDescription.gameInstanceGUID is nil")
+    TableDescription.sanityCheck(tableDescription)
 
     local self = {}
     setmetatable(self, ServerGameInstance)
@@ -57,9 +55,16 @@ ServerGameInstance.new = function(tableDescription: CommonTypes.TableDescription
     ServerGameInstanceStorage.storeServerGameInstance(self)
 
     ServerEventManagement.setupGameInstanceEventsAndFunctions(tableDescription.gameInstanceGUID)
-    self.gameState = createNewGameState(self.tableDescription)
+    self.gameState = GameState.createNewGameState(self.tableDescription)
 
     return self
+end
+
+function ServerGameInstance:sanityCheck()
+    assert(self.tableDescription, "tableDescription is nil")
+    assert(self.gameState, "gameState is nil")
+    TableDescription.sanityCheck(self.tableDescription)
+    GameState.sanityCheck(self.gameState)
 end
 
 function ServerGameInstance:destroy()
@@ -75,7 +80,7 @@ function ServerGameInstance:playerLeftGame(userId: CommonTypes.UserId)
 end
 
 function ServerGameInstance:getGameInstanceGUID(): CommonTypes.GameInstanceGUID
-    return self.gameInstanceGUID
+    return self.tableDescription.gameInstanceGUID
 end
 
 function ServerGameInstance:getGameState(): GameTypes.GameState
@@ -83,13 +88,13 @@ function ServerGameInstance:getGameState(): GameTypes.GameState
 end
 
 function ServerGameInstance:isPlayerOverMax(userId: CommonTypes.UserId): boolean
-    assert(self.tableDescription.memberUserIds[userId], "User " .. userId .. " is not a member of game " .. self.gameInstanceGUID)
+    assert(self.tableDescription.memberUserIds[userId], "User " .. userId .. " is not a member of game " .. self:getGameInstanceGUID())
     local score = self.gameState.scoresByUserId[userId] or 0
     return score >= maxScore
 end
 
 function ServerGameInstance:getCurrentPlayerUserId(): CommonTypes.UserId
-    return GameUtils.getCurrentPlayerUserId(self.gameState)
+    return GameState.getCurrentPlayerUserId(self.gameState)
 end
 
 function ServerGameInstance:isPlayerInGame(userId: CommonTypes.UserId) : boolean
@@ -100,38 +105,40 @@ function ServerGameInstance:getGameOptions(): CommonTypes.NonDefaultGameOptions
     return self.tableDescription.opt_nonDefaultGameOptions or {}
 end
 
-function ServerGameInstance:checkForWinner(dieRollerUserId: CommonTypes.UserId)
-    local gameOptions = self:getGameOptions()
-    if gameOptions.Evalaute_At_End_Of_Round then
-        if self.gameState.currentPlayerIndex == #self.gameState.playerIdsInTurnOrder then
-            for userId, _ in self.gameState.scoresByUserId do
-                if self:isPlayerOverMax(userId) then
-                    self.gameState.opt_winnerUserId = userId
-                    break
-                end
-            end
-        end
-    else
-        if self:isPlayerOverMax(dieRollerUserId) then
-            self.gameState.opt_winnerUserId = dieRollerUserId
+function ServerGameInstance:checkForEndGame(): boolean
+    for userId, _ in self.gameState.scoresByUserId do
+        if self:isPlayerOverMax(userId) then
+            self.gameState.opt_winnerUserId = userId
+            return true
         end
     end
+    return false
 end
 
-function ServerGameInstance:rollDie(dieRollerUserId: CommonTypes.UserId, dieType: GameTypes.DieType): (boolean, number)
+function ServerGameInstance:dieRoll(rollRequesterUserId: CommonTypes.UserId, dieType: GameTypes.DieType): (boolean, GameTypes.ActionDescription?)
+    assert(rollRequesterUserId, "rollRequesterUserId is nil")
+    assert(dieType, "dieType is nil")
+
+    Utils.debugPrint("GamePlay", "ServerGameInstance.dieRoll 001")
+
     -- Better be a member of the game.
-    assert(self.tableDescription.memberUserIds[dieRollerUserId], "User " .. dieRollerUserId .. " is not a member of game " .. self.gameInstanceGUID)
+    if not self.tableDescription.memberUserIds[rollRequesterUserId] then
+        Utils.debugPrint("GamePlay", "ServerGameInstance.dieRoll 002")
+        return false
+    end
 
     -- Whose turn is it.
     local currentPlayerUserId = self:getCurrentPlayerUserId()
 
     -- Either this is the player requesting the roll, or it's a mock and the player requesting the roll is the host.
-    if not GameUtils.firstUserCanPlayAsSecondUser(self.tableDescription, dieRollerUserId, currentPlayerUserId) then
-        return false, 0
+    if not GameUtils.firstUserCanPlayAsSecondUser(self.tableDescription, rollRequesterUserId, currentPlayerUserId) then
+        Utils.debugPrint("GamePlay", "ServerGameInstance.dieRoll 003")
+        return false
     end
 
     -- Roll a die, update game state.
     local dieRoll = math.random(1, 6)
+    Utils.debugPrint("GamePlay", "ServerGameInstance.dieRoll 004")
 
     local gameOptions = self:getGameOptions()
 
@@ -145,16 +152,27 @@ function ServerGameInstance:rollDie(dieRollerUserId: CommonTypes.UserId, dieType
     elseif (not gameOptions.No_Advantage_Die) and dieType == DieTypes.Advantage then
         dieRoll = dieRoll + 1
     elseif not dieType == DieTypes.Standard then
-        return false, 0
+        return false
     end
 
-    self.gameState.scoresByUserId[dieRollerUserId] = (self.gameState.scoresByUserId[dieRollerUserId] or 0) + dieRoll
+    self.gameState.scoresByUserId[currentPlayerUserId] = (self.gameState.scoresByUserId[currentPlayerUserId] or 0) + dieRoll
 
-    self:checkForWinner(dieRollerUserId)
+    -- Check for the end of the game.
+    if gameOptions.Evalaute_At_End_Of_Round then
+        if self.gameState.currentPlayerIndex == #self.gameState.playerIdsInTurnOrder then
+            self:checkForEndGame()
+        end
+    else
+        self:checkForEndGame()
+    end
+
+    Utils.debugPrint("GamePlay", "ServerGameInstance.dieRoll 005")
+
+    local actionDescription = makeDieRollActionDescription(currentPlayerUserId, dieType, dieRoll)
 
     self.gameState.currentPlayerIndex = 1 + (self.gameState.currentPlayerIndex) % #self.gameState.playerIdsInTurnOrder
 
-    return true, dieRoll
+    return true, actionDescription
 end
 
 return ServerGameInstance

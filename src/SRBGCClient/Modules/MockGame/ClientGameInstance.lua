@@ -4,6 +4,7 @@ Game-specific setup for the client side.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 
 -- RobloxBoardGameShared
 local RobloxBoardGameShared = ReplicatedStorage.RobloxBoardGameShared
@@ -16,6 +17,7 @@ local RobloxBoardGameClient = script.Parent.Parent.Parent.Parent.RobloxBoardGame
 local GuiUtils = require(RobloxBoardGameClient.Modules.GuiUtils)
 local DialogUtils = require(RobloxBoardGameClient.Modules.DialogUtils)
 local RBGClientEventManagement = require(RobloxBoardGameClient.Modules.ClientEventManagement)
+local MessageLog = require(RobloxBoardGameClient.Modules.MessageLog)
 
 -- SRBGCShared
 local SRBGCShared = ReplicatedStorage.SRBGCShared
@@ -23,11 +25,11 @@ local GameTypes = require(SRBGCShared.Modules.MockGame.GameTypes)
 local GameUtils = require(SRBGCShared.Modules.MockGame.GameUtils)
 local DieTypes = require(SRBGCShared.Modules.MockGame.DieTypes)
 local ActionTypes = require(SRBGCShared.Modules.MockGame.ActionTypes)
+local GameState = require(SRBGCShared.Modules.MockGame.GameState)
 
 -- SRBGCClient
 local SRBGCClient = script.Parent.Parent.Parent
 local ClientEventManagement = require(SRBGCClient.Modules.MockGame.ClientEventManagement)
-local MessageLog = require(SRBGCClient.Modules.MockGame.MessageLog)
 
 local ClientGameInstance = {}
 ClientGameInstance.__index = ClientGameInstance
@@ -41,8 +43,8 @@ export type ClientGameInstance = {
     gameState: GameTypes.GameState,
     localUserId: CommonTypes.UserId,
     messageLog: MessageLog.MessageLog,
-    layoutOrder: number,
     scoreContent: Frame,
+    dieRollContainer: Frame,
     dieRollAnimationContent: TextLabel,
     gameState: GameTypes.GameState,
     buttonsByUserId: { [CommonTypes.UserId]: { TextButton } },
@@ -59,7 +61,6 @@ export type ClientGameInstance = {
     onPlayerLeftTable: (ClientGameInstance, CommonTypes.UserId) -> boolean,
 
     -- Other "private" functions.
-    setAndIncrementLayoutOrder: (ClientGameInstance, GuiObject) -> nil,
     asyncBuildUI: (ClientGameInstance, Frame) -> nil,
     buildUIInternal: (ClientGameInstance, Frame) -> nil,
     addDieRollAnimationSection: (ClientGameInstance, Frame) -> nil,
@@ -70,7 +71,9 @@ export type ClientGameInstance = {
     onGameStateUpdated: (ClientGameInstance, GameTypes.ActionDescription?) -> nil,
     updateButtonActiveStates: (ClientGameInstance) -> nil,
     displayNewTurnOrGameEnd: (ClientGameInstance) -> nil,
-    animateDieRoll: (ClientGameInstance, GameTypes.ActionDescription, () -> ()) -> nil,
+    notifyDieRollStart: (ClientGameInstance, CommonTypes.UserId, GameTypes.ActionDetailsDieRoll, () -> ()) -> nil,
+    animateDieRoll: (ClientGameInstance, GameTypes.ActionDetailsDieRoll, () ->()) -> nil,
+    notifyDieRollFinished: (GameTypes.ActionDetailsDieRoll, () -> ()) -> nil,
     disableAllButtons: (ClientGameInstance) -> nil,
     getGameInstanceGUID: (ClientGameInstance) -> CommonTypes.GameInstanceGUID,
 }
@@ -78,7 +81,7 @@ export type ClientGameInstance = {
 -- Local helper functions.
 local addButtonForDie = function(gameInstanceGUID: CommonTypes.GameInstanceGUID, parent: Frame, dieType: GameTypes.DieType)
     local callback = function()
-        ClientEventManagement.requestRollDie(gameInstanceGUID, dieType)
+        ClientEventManagement.requestDieRoll(gameInstanceGUID, dieType)
     end
 
     local _, button = GuiUtils.addStandardTextButtonInContainer(parent, "DieButton", callback, {
@@ -111,7 +114,7 @@ function ClientGameInstance:onPlayerLeftTable(userId: CommonTypes.UserId): boole
     end
 
     task.spawn(function()
-        local userName = PlayerUtils.getNameAsync(userId)
+        local userName = PlayerUtils.getName(userId)
         local message = GuiUtils.bold(userName) .. " left the table. End the game?"
         DialogUtils.showConfirmationDialog(userName, message, function()
             RBGClientEventManagement.endGame(self.tableDescription.tableId)
@@ -130,11 +133,12 @@ ClientGameInstance.new = function(tableDescription: CommonTypes.TableDescription
     setmetatable(self, ClientGameInstance)
 
     self.tableDescription = tableDescription
-    self.layoutOrder = 0
     self.buttonsByUserId = {}
     self.scoreLabelsByUserId = {}
 
     local onGameStateUpdated = function(gameState: GameTypes.GameState, opt_actionDescription: GameTypes.ActionDescription?)
+        Utils.debugPrint("GamePlay", "ClientGameInstance onGameStateUpdated gameState = ", gameState)
+        Utils.debugPrint("GamePlay", "ClientGameInstance onGameStateUpdated opt_actionDescription = ", opt_actionDescription)
         self.gameState = gameState
         self:onGameStateUpdated(opt_actionDescription)
     end
@@ -144,11 +148,6 @@ ClientGameInstance.new = function(tableDescription: CommonTypes.TableDescription
     _clientGameInstance = self
 
     return self
-end
-
-function ClientGameInstance:setAndIncrementLayoutOrder(guiObject:GuiObject)
-    guiObject.LayoutOrder = self.layoutOrder
-    self.layoutOrder = self.layoutOrder + 1
 end
 
 function ClientGameInstance:asyncBuildUI(parent: Frame)
@@ -169,9 +168,7 @@ function ClientGameInstance:buildUIInternal(parent: Frame)
     })
 
     self.messageLog = MessageLog.new(parent)
-    self:setAndIncrementLayoutOrder(self.messageLog.scrollingFrame)
-
-    self:addDieRollAnimationSection(parent)
+    self.messageLog.scrollingFrame.LayoutOrder = GuiUtils.getNextLayoutOrder(parent)
 
     self:addScoreSection(parent)
 
@@ -184,6 +181,8 @@ function ClientGameInstance:buildUIInternal(parent: Frame)
             self:addScoreForUser(userId)
         end
 
+        self:addDieRollAnimationSection(parent)
+
         self:onGameStateUpdated()
     end)
 
@@ -191,12 +190,12 @@ end
 
 function ClientGameInstance:addDieRollAnimationSection(parent: Frame)
     assert(parent, "parent is nil")
-    local content = GuiUtils.addRowAndReturnRowContent(parent, "DieRow")
-    self:setAndIncrementLayoutOrder(content)
+    self.dieRollContainer = GuiUtils.addRowAndReturnRowContent(parent, "DieRow")
+    self.dieRollContainer.Visible = false
 
     local dieRollAnimationHolder = Instance.new("Frame")
     dieRollAnimationHolder.Name = "DieRollAnimationHolder"
-    dieRollAnimationHolder.Parent = content
+    dieRollAnimationHolder.Parent = self.dieRollContainer
     dieRollAnimationHolder.Size = UDim2.fromOffset(dieRollWidth, dieRollHeight)
     dieRollAnimationHolder.BackgroundTransparency = 1
 
@@ -206,6 +205,8 @@ function ClientGameInstance:addDieRollAnimationSection(parent: Frame)
     self.dieRollAnimationContent.Size = UDim2.fromScale(1, 1)
     self.dieRollAnimationContent.Font = Enum.Font.SourceSansBold
     self.dieRollAnimationContent.TextSize = 36
+    GuiUtils.centerInParent(self.dieRollAnimationContent)
+
     GuiUtils.addCorner(self.dieRollAnimationContent)
 
     local uiScale = Instance.new("UIScale")
@@ -227,7 +228,7 @@ function ClientGameInstance:maybeAddRowForUser(parent: Frame, userId: CommonType
     end
 
     local content = GuiUtils.addRowAndReturnRowContent(parent, "UserRow", {
-        labelText = "Roll for " .. PlayerUtils.getNameAsync(userId),
+        labelText = "Roll for " .. PlayerUtils.getName(userId),
     })
 
     self.buttonsByUserId[userId] = {}
@@ -241,7 +242,7 @@ end
 
 function ClientGameInstance:addScoreForUser(userId: CommonTypes.UserId): TextLabel
     local content = GuiUtils.addRowAndReturnRowContent(self.scoreContent, "ScoreRow" .. userId, {
-        labelText = PlayerUtils.getNameAsync(userId) .. ":",
+        labelText = PlayerUtils.getName(userId) .. ":",
         horizontalAlignment = Enum.HorizontalAlignment.Left,
     })
     local scoreLabel = GuiUtils.addTextLabel(content, "0", {
@@ -263,28 +264,48 @@ function ClientGameInstance:updateScores()
 end
 
 function ClientGameInstance:onGameStateUpdated(opt_actionDescription: GameTypes.ActionDescription?)
+    Utils.debugPrint("GamePlay", "onGameStateUpdated opt_actionDescription = ", opt_actionDescription)
+
     -- if there's a description, first play it out/animate it.
     if opt_actionDescription then
+        Utils.debugPrint("GamePlay", "onGameStateUpdated 001")
         -- Disable controls while animating.
         self:disableAllButtons()
 
-        local actionType = opt_actionDescription.actionType
-        if actionType == ActionTypes.RollDie then
-            self:animateDieRoll(opt_actionDescription, function()
-                self:updateScores()
+        -- Show the die roll section.
+        self.dieRollContainer.Visible = true
 
-                -- Give everyone a second to digest this.
-                task.wait(1)
-                self:displayNewTurnOrGameEnd()
+        local actionType = opt_actionDescription.actionType
+        local actorUserId = opt_actionDescription.actorUserId
+        local actionDetails = opt_actionDescription.actionDetails
+        assert(actionType, "actionType is nil")
+        assert(actionDetails, "actionDetails is nil")
+
+        Utils.debugPrint("GamePlay", "actionType  = ", actionType)
+        if actionType == ActionTypes.DieRoll then
+            Utils.debugPrint("GamePlay", "onGameStateUpdated 002.5")
+            self:notifyDieRollStart(actorUserId, actionDetails, function()
+                self:animateDieRoll(actionDetails, function()
+                    self:notifyDieRollFinished(actionDetails, function()
+                        self:updateScores()
+
+                        -- Give everyone a second to digest this.
+                        task.wait(1)
+                        self:displayNewTurnOrGameEnd()
+                    end)
+                end)
             end)
         end
     else
+        Utils.debugPrint("GamePlay", "onGameStateUpdated 002")
         self:updateScores()
+        self:displayNewTurnOrGameEnd()
     end
+    Utils.debugPrint("GamePlay", "onGameStateUpdated 003")
 end
 
 function ClientGameInstance:updateButtonActiveStates()
-    local currentPlayerId = GameUtils.getCurrentPlayerUserId(self.gameState)
+    local currentPlayerId = GameState.getCurrentPlayerUserId(self.gameState)
     for userId, buttonSet in pairs(self.buttonsByUserId) do
         local canPlay = false
         if not self.gameState.opt_winnerUserId then
@@ -298,40 +319,44 @@ function ClientGameInstance:updateButtonActiveStates()
     end
 end
 
-
 function ClientGameInstance:displayNewTurnOrGameEnd()
     -- Someone's turn, or game over/winner?
     local message
     if not self.gameState.opt_winnerUserId then
-        local currentPlayerId = GameUtils.getCurrentPlayerUserId(self.gameState)
-        local currentPlayerName = PlayerUtils.getNameAsync(currentPlayerId)
-        message = GuiUtils.bold(currentPlayerName) .. ": it's your turn."
+        local currentPlayerId = GameState.getCurrentPlayerUserId(self.gameState)
+        local currentPlayerName = PlayerUtils.getName(currentPlayerId)
+        message = GuiUtils.bold(currentPlayerName) .. ": It's your turn."
     else
-        local winnerName = PlayerUtils.getNameAsync(self.gameState.opt_winnerUserId)
+        local winnerName = PlayerUtils.getName(self.gameState.opt_winnerUserId)
         local score = self.gameState.scoresByUserId[self.gameState.opt_winnerUserId]
         message = GuiUtils.bold(winnerName) .. " wins with a score of " .. self.gameState.scoresByUserId[score] .. " points!"
     end
-    self.messageLog:addMessage(message)
+    self.messageLog:enqueueMessage(message)
 
     -- Update all the buttons.
     self:updateButtonActiveStates()
 end
 
-function ClientGameInstance:animateDieRoll(actionDescription: GameTypes.ActionDescription, onDieRollFinished: () -> ())
-    local currentPlayerId = GameUtils.getCurrentPlayerUserId(self.gameState)
-    local currentPlayerName = PlayerUtils.getNameAsync(currentPlayerId)
-    local message = currentPlayerName .. " is rolling the " .. GameUtils.getDieName(actionDescription.actionDetails.dieType) .. " die."
-    self.messageLog:addMessage(message)
+function ClientGameInstance:notifyDieRollStart(actorUserId: CommonTypes.UserId, actionDetailsDieRoll: GameTypes.ActionDetailsDieRoll, onNotificationShown: () -> ())
+    assert(actionDetailsDieRoll, "actionDetailsDieRoll is nil")
+    assert(onNotificationShown, "onDieRollFinished is nil")
 
-    if actionDescription.dieType == DieTypes.Standard then
+    local currentPlayerName = PlayerUtils.getName(actorUserId)
+    local message = currentPlayerName .. " is rolling the " .. GameUtils.getDieName(actionDetailsDieRoll.dieType) .. " die."
+    -- Wait until message displays to continue...
+    self.messageLog:enqueueMessage(message, onNotificationShown)
+end
+
+function ClientGameInstance:animateDieRoll(actionDetailsDieRoll: GameTypes.ActionDetailsDieRoll, onAnimationFinished: () -> ())
+    if actionDetailsDieRoll.dieType == DieTypes.Standard then
         self.dieRollAnimationContent.BackgroundColor3 = Color3.fromRGB(255, 230, 240)
-    elseif actionDescription.dieType == DieTypes.Smushed then
+    elseif actionDetailsDieRoll.dieType == DieTypes.Smushed then
         self.dieRollAnimationContent.BackgroundColor3 = Color3.fromRGB(230, 255, 240)
     else
         self.dieRollAnimationContent.BackgroundColor3 = Color3.fromRGB(230, 240, 255)
     end
 
-    self.dieRollAnimationContent.Text = tostring(actionDescription.actionDetails.rollResult)
+    self.dieRollAnimationContent.Text = tostring(actionDetailsDieRoll.rollResult)
 
     -- Animate it in
     local uiScale  = self.dieRollAnimationContent:FindFirstChild("TweenScaling")
@@ -339,18 +364,21 @@ function ClientGameInstance:animateDieRoll(actionDescription: GameTypes.ActionDe
     uiScale.Scale = 0
     self.dieRollAnimationContent.Rotation = 980
 
-    local tweenService = game:GetService("TweenService")
-    local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Bounce, Enum.EasingDirection.Out, 0, false, 0)
-    local t1 = tweenService:Create(uiScale, tweenInfo, {Scale = 1})
-    local t2 = tweenService:Create(self.dieRollAnimationContent, tweenInfo, {Rotation = 0})
-    t1.Play()
-    t2.Play()
-    t1.Completed:Connect(function()
-        local _message = currentPlayerName .. " rolled a " .. tostring(actionDescription.actionDetails.rollResult)
-        self.messageLog:addMessage(_message)
+    local scaleTweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In, 0, false, 0)
+    local rotateTweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, 0, false, 0)
+    local t1 = TweenService:Create(uiScale, scaleTweenInfo, {Scale = 1})
+    local t2 = TweenService:Create(self.dieRollAnimationContent, rotateTweenInfo, {Rotation = 0})
+    t1:Play()
+    t2:Play()
+    t1.Completed:Connect(onAnimationFinished)
+end
 
-        onDieRollFinished()
-    end)
+function ClientGameInstance:notifyDieRollFinished(actionDetailsDieRoll: GameTypes.ActionDetailsDieRoll, onNotifyFinished: () -> ())
+    local currentPlayerId = GameState.getCurrentPlayerUserId(self.gameState)
+    local currentPlayerName = PlayerUtils.getName(currentPlayerId)
+
+    local _message = currentPlayerName .. " rolled a " .. tostring(actionDetailsDieRoll.rollResult)
+    self.messageLog:enqueueMessage(_message, onNotifyFinished)
 end
 
 function ClientGameInstance:disableAllButtons()

@@ -9,7 +9,7 @@ local SRBGCShared = ReplicatedStorage.SRBGCShared
 local GameTypes = require(SRBGCShared.Modules.MockGame.GameTypes)
 
 local ActionTypes: GameTypes.ActionType = {
-    RollDie = 0,
+    DieRoll = 0,
 } :: GameTypes.ActionTypes
 
 return ActionTypes
