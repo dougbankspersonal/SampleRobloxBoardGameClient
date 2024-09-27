@@ -18,6 +18,7 @@ local GuiUtils = require(RobloxBoardGameClient.Modules.GuiUtils)
 local DialogUtils = require(RobloxBoardGameClient.Modules.DialogUtils)
 local RBGClientEventManagement = require(RobloxBoardGameClient.Modules.ClientEventManagement)
 local MessageLog = require(RobloxBoardGameClient.Modules.MessageLog)
+local GuiConstants = require(RobloxBoardGameClient.Modules.GuiConstants)
 
 -- SRBGCShared
 local SRBGCShared = ReplicatedStorage.SRBGCShared
@@ -161,8 +162,6 @@ function ClientGameInstance:buildUIInternal(parent: Frame)
     assert(parent, "parent is nil")
     self.localUserId = Players.LocalPlayer.UserId
 
-    Utils.debugPrint("TablePlaying", "Doug: building ui..")
-
     GuiUtils.addUIListLayout(parent, {
         VerticalAlignment = Enum.VerticalAlignment.Top,
     })
@@ -272,25 +271,28 @@ function ClientGameInstance:onGameStateUpdated(opt_actionDescription: GameTypes.
         -- Disable controls while animating.
         self:disableAllButtons()
 
-        -- Show the die roll section.
-        self.dieRollContainer.Visible = true
-
         local actionType = opt_actionDescription.actionType
         local actorUserId = opt_actionDescription.actorUserId
         local actionDetails = opt_actionDescription.actionDetails
         assert(actionType, "actionType is nil")
         assert(actionDetails, "actionDetails is nil")
 
-        Utils.debugPrint("GamePlay", "actionType  = ", actionType)
+        Utils.debugPrint("MessageLog", "actionType  = ", actionType)
         if actionType == ActionTypes.DieRoll then
-            Utils.debugPrint("GamePlay", "onGameStateUpdated 002.5")
+            Utils.debugPrint("MessageLog", "onGameStateUpdated 002.001")
             self:notifyDieRollStart(actorUserId, actionDetails, function()
+                task.wait(GuiConstants.messageQueueTweenTime * 4)
+                Utils.debugPrint("MessageLog", "onGameStateUpdated 002.002")
                 self:animateDieRoll(actionDetails, function()
-                    self:notifyDieRollFinished(actionDetails, function()
+                    task.wait(GuiConstants.messageQueueTweenTime * 4)
+                    Utils.debugPrint("MessageLog", "onGameStateUpdated 002.003")
+                    self:notifyDieRollFinished(actorUserId, actionDetails, function()
+                        task.wait(GuiConstants.messageQueueTweenTime * 4)
+                        Utils.debugPrint("MessageLog", "onGameStateUpdated 002.004")
                         self:updateScores()
 
                         -- Give everyone a second to digest this.
-                        task.wait(1)
+                        task.wait(GuiConstants.messageQueueTweenTime * 4)
                         self:displayNewTurnOrGameEnd()
                     end)
                 end)
@@ -341,13 +343,17 @@ function ClientGameInstance:notifyDieRollStart(actorUserId: CommonTypes.UserId, 
     assert(actionDetailsDieRoll, "actionDetailsDieRoll is nil")
     assert(onNotificationShown, "onDieRollFinished is nil")
 
-    local currentPlayerName = PlayerUtils.getName(actorUserId)
-    local message = currentPlayerName .. " is rolling the " .. GameUtils.getDieName(actionDetailsDieRoll.dieType) .. " die."
+    local actorPlayerName = PlayerUtils.getName(actorUserId)
+    local message = actorPlayerName .. " is rolling the " .. GameUtils.getDieName(actionDetailsDieRoll.dieType) .. " die."
     -- Wait until message displays to continue...
+    Utils.debugPrint("GamePlay", "notifyDieRollStart 001")
     self.messageLog:enqueueMessage(message, onNotificationShown)
+    Utils.debugPrint("GamePlay", "notifyDieRollStart 002")
 end
 
 function ClientGameInstance:animateDieRoll(actionDetailsDieRoll: GameTypes.ActionDetailsDieRoll, onAnimationFinished: () -> ())
+    self.dieRollContainer.Visible = true
+
     if actionDetailsDieRoll.dieType == DieTypes.Standard then
         self.dieRollAnimationContent.BackgroundColor3 = Color3.fromRGB(255, 230, 240)
     elseif actionDetailsDieRoll.dieType == DieTypes.Smushed then
@@ -373,11 +379,10 @@ function ClientGameInstance:animateDieRoll(actionDetailsDieRoll: GameTypes.Actio
     t1.Completed:Connect(onAnimationFinished)
 end
 
-function ClientGameInstance:notifyDieRollFinished(actionDetailsDieRoll: GameTypes.ActionDetailsDieRoll, onNotifyFinished: () -> ())
-    local currentPlayerId = GameState.getCurrentPlayerUserId(self.gameState)
-    local currentPlayerName = PlayerUtils.getName(currentPlayerId)
+function ClientGameInstance:notifyDieRollFinished(actorUserId:CommonTypes.UserId, actionDetailsDieRoll: GameTypes.ActionDetailsDieRoll, onNotifyFinished: () -> ())
+    local actorName = PlayerUtils.getName(actorUserId)
 
-    local _message = currentPlayerName .. " rolled a " .. tostring(actionDetailsDieRoll.rollResult)
+    local _message = actorName .. " rolled a " .. tostring(actionDetailsDieRoll.rollResult)
     self.messageLog:enqueueMessage(_message, onNotifyFinished)
 end
 
