@@ -25,7 +25,7 @@ local ServerEventManagement = require(SRBGCServer.Modules.MockGame.ServerEventMa
 local ServerTypes = require(SRBGCServer.Modules.MockGame.ServerTypes)
 local ServerGameInstanceStorage = require(SRBGCServer.Modules.MockGame.ServerGameInstanceStorage)
 
-local maxScore = 50
+local maxScore = 10
 
 local ServerGameInstance = {}
 ServerGameInstance.__index = ServerGameInstance

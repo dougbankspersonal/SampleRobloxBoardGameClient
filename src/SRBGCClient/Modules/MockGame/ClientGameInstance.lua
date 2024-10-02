@@ -104,6 +104,7 @@ ClientGameInstance.get = function(): ClientGameInstance?
 end
 
 function ClientGameInstance:destroy()
+    Utils.debugPrint("GamePlay", "ClientGameInstance destroy 001")
     _clientGameInstance = nil
     -- Anything else to clean up here?
 end
@@ -228,6 +229,7 @@ function ClientGameInstance:maybeAddRowForUser(parent: Frame, userId: CommonType
 
     local content = GuiUtils.addRowAndReturnRowContent(parent, "UserRow", {
         labelText = "Roll for " .. PlayerUtils.getName(userId),
+        horizontalAlignment = Enum.HorizontalAlignment.Center,
     })
 
     self.buttonsByUserId[userId] = {}
@@ -262,11 +264,16 @@ function ClientGameInstance:updateScores()
     end
 end
 
+local waitTime = GuiConstants.messageQueueTransparencyTweenTime + GuiConstants.scrollingFrameSlideTweenTime
+
 function ClientGameInstance:onGameStateUpdated(opt_actionDescription: GameTypes.ActionDescription?)
     Utils.debugPrint("GamePlay", "onGameStateUpdated opt_actionDescription = ", opt_actionDescription)
 
+    Utils.debugPrint("MessageLog", "onGameStateUpdated 001")
+
     -- if there's a description, first play it out/animate it.
     if opt_actionDescription then
+        Utils.debugPrint("MessageLog", "onGameStateUpdated 002")
         Utils.debugPrint("GamePlay", "onGameStateUpdated 001")
         -- Disable controls while animating.
         self:disableAllButtons()
@@ -277,22 +284,22 @@ function ClientGameInstance:onGameStateUpdated(opt_actionDescription: GameTypes.
         assert(actionType, "actionType is nil")
         assert(actionDetails, "actionDetails is nil")
 
-        Utils.debugPrint("MessageLog", "actionType  = ", actionType)
+        Utils.debugPrint("MessageLog", "onGameStateUpdated 003")
         if actionType == ActionTypes.DieRoll then
-            Utils.debugPrint("MessageLog", "onGameStateUpdated 002.001")
+            Utils.debugPrint("MessageLog", "onGameStateUpdated calling notifyDieRollStart")
             self:notifyDieRollStart(actorUserId, actionDetails, function()
-                task.wait(GuiConstants.messageQueueTweenTime * 4)
-                Utils.debugPrint("MessageLog", "onGameStateUpdated 002.002")
+                task.wait(waitTime)
+                Utils.debugPrint("MessageLog", "onGameStateUpdated calling animateDieRoll")
                 self:animateDieRoll(actionDetails, function()
-                    task.wait(GuiConstants.messageQueueTweenTime * 4)
-                    Utils.debugPrint("MessageLog", "onGameStateUpdated 002.003")
+                    task.wait(waitTime)
+                    Utils.debugPrint("MessageLog", "onGameStateUpdated calling notifyDieRollFinished")
                     self:notifyDieRollFinished(actorUserId, actionDetails, function()
-                        task.wait(GuiConstants.messageQueueTweenTime * 4)
-                        Utils.debugPrint("MessageLog", "onGameStateUpdated 002.004")
+                        task.wait(waitTime)
+                        Utils.debugPrint("MessageLog", "onGameStateUpdated calling updateScores")
                         self:updateScores()
 
                         -- Give everyone a second to digest this.
-                        task.wait(GuiConstants.messageQueueTweenTime * 4)
+                        task.wait(waitTime)
                         self:displayNewTurnOrGameEnd()
                     end)
                 end)
@@ -331,7 +338,7 @@ function ClientGameInstance:displayNewTurnOrGameEnd()
     else
         local winnerName = PlayerUtils.getName(self.gameState.opt_winnerUserId)
         local score = self.gameState.scoresByUserId[self.gameState.opt_winnerUserId]
-        message = GuiUtils.bold(winnerName) .. " wins with a score of " .. self.gameState.scoresByUserId[score] .. " points!"
+        message = GuiUtils.bold(winnerName) .. " wins with a score of " .. score .. " points!"
     end
     self.messageLog:enqueueMessage(message)
 
