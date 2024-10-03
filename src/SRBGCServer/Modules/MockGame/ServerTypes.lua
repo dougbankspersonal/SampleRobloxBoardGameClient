@@ -17,6 +17,7 @@ export type ServerGameInstance = {
 
     -- static functions.
     findGameInstance: (gameInstanceGUID: CommonTypes.GameInstanceGUID) -> ServerGameInstance?,
+    new: (gameInstanceGUID: CommonTypes.GameInstanceGUID, tableDescription: CommonTypes.TableDescription) -> ServerGameInstance,
 
     -- const member functions.
     -- Shortcuts to ask questions about game instance.
@@ -34,10 +35,9 @@ export type ServerGameInstance = {
     checkForEndGame: (ServerGameInstance) -> boolean,
 
     -- The functions any ServerGameInstance needs to implement to work with RBG library.
-    new: (gameInstanceGUID: CommonTypes.GameInstanceGUID, tableDescription: CommonTypes.TableDescription) -> ServerGameInstance,
     destroy: (ServerGameInstance) -> nil,
-    playerLeftGame: (ServerGameInstance, userId: CommonTypes.UserId) -> nil,
+    playerLeftGame: (ServerGameInstance, CommonTypes.UserId) -> nil,
+    getGameSpecificGameEndDetails: (ServerGameInstance) -> any?,
 }
-
 
 return ServerTypes

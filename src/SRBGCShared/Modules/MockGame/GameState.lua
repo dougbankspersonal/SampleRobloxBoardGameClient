@@ -16,17 +16,6 @@ local GameTypes = require(SRBGCShared.Modules.MockGame.GameTypes)
 
 local GameState = {}
 
-function GameState.sanityCheck(gameState: GameTypes.GameState)
-    assert(gameState, "gameState is nil")
-    assert(gameState.playerIdsInTurnOrder, "playerIdsInTurnOrder is nil")
-    assert(#gameState.playerIdsInTurnOrder > 0, "playerIdsInTurnOrder is empty")
-    local playerIds = Cryo.Dictionary.keys(gameState.scoresByUserId)
-    assert(#gameState.playerIdsInTurnOrder == #playerIds, "playerIdsInTurnOrder and scoresByUserId don't match")
-    assert(gameState.currentPlayerIndex, "currentPlayerIndex is nil")
-    assert(gameState.currentPlayerIndex >= 1, "currentPlayerIndex is less than 1")
-    assert(gameState.currentPlayerIndex <= #gameState.playerIdsInTurnOrder, "currentPlayerIndex is greater than the number of players")
-end
-
 --[[
 Sending game state over the wire corrupts it: indicies that should be numbers become strings.
 Fix it.
@@ -39,7 +28,7 @@ GameState.sanitizeGameState = function(gameState: GameTypes.GameState): GameType
         retVal.scoresByUserId[tonumber(stringUserId)] = score
     end
 
-    GameState.sanityCheck(gameState)
+    GameState.sanityCheck(retVal)
 
     return retVal
 end
@@ -76,6 +65,35 @@ function GameState.createNewGameState(tableDescription: CommonTypes.TableDescrip
     gameState.opt_winnerUserId = nil
 
     return gameState
+end
+
+function GameState.sanityCheck(gameState: GameTypes.GameState)
+    assert(gameState, "gameState is nil")
+    assert(gameState.playerIdsInTurnOrder, "playerIdsInTurnOrder is nil")
+    assert(gameState.currentPlayerIndex, "currentPlayerIndex is nil")
+
+    assert(#gameState.playerIdsInTurnOrder > 0, "playerIdsInTurnOrder is empty")
+
+    local scoreUserIds = Cryo.Dictionary.keys(gameState.scoresByUserId)
+    Utils.debugPrint("SanityChecks", "scoreUserIds = ", scoreUserIds)
+    Utils.debugPrint("SanityChecks", "gameState.playerIdsInTurnOrder = ", gameState.playerIdsInTurnOrder)
+    for _, userId in ipairs(gameState.playerIdsInTurnOrder) do
+        assert(typeof(userId) == "number", "GameState.sanityCheck: playerIdsInTurnOrder has a non-number key")
+    end
+    for userId, _ in pairs(gameState.scoresByUserId) do
+        assert(typeof(userId) == "number", "GameState.sanityCheck: scoresByUserId has a non-number key")
+    end
+    assert(Utils.unsortedListsMatch(scoreUserIds, gameState.playerIdsInTurnOrder), "GameState.sanityCheck: scoresByUserId and playerIdsInTurnOrder don't match")
+
+    assert(gameState.currentPlayerIndex >= 1, "GameState.sanityCheck: currentPlayerIndex is less than 1")
+    assert(gameState.currentPlayerIndex <= #gameState.playerIdsInTurnOrder, "GameState.sanityCheck: currentPlayerIndex is greater than the number of players")
+
+    for userId, _ in pairs(gameState.scoresByUserId) do
+        assert(typeof(userId) == "number", "GameState.sanityCheck: scoresByUserId has a non-number key")
+    end
+    for _, userId in ipairs(gameState.playerIdsInTurnOrder) do
+        assert(typeof(userId) == "number", "GameState.sanityCheck: playerIdsInTurnOrder has a non-number key")
+    end
 end
 
 return GameState

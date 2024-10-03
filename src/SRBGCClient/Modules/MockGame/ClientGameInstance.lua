@@ -11,6 +11,7 @@ local RobloxBoardGameShared = ReplicatedStorage.RobloxBoardGameShared
 local CommonTypes = require(RobloxBoardGameShared.Types.CommonTypes)
 local Utils = require(RobloxBoardGameShared.Modules.Utils)
 local PlayerUtils = require(RobloxBoardGameShared.Modules.PlayerUtils)
+local TableDescription= require(RobloxBoardGameShared.Modules.TableDescription)
 
 -- RobloxBoardGameClient
 local RobloxBoardGameClient = script.Parent.Parent.Parent.Parent.RobloxBoardGameClient
@@ -19,6 +20,7 @@ local DialogUtils = require(RobloxBoardGameClient.Modules.DialogUtils)
 local RBGClientEventManagement = require(RobloxBoardGameClient.Modules.ClientEventManagement)
 local MessageLog = require(RobloxBoardGameClient.Modules.MessageLog)
 local GuiConstants = require(RobloxBoardGameClient.Modules.GuiConstants)
+local GameTableStates = require(RobloxBoardGameShared.Globals.GameTableStates)
 
 -- SRBGCShared
 local SRBGCShared = ReplicatedStorage.SRBGCShared
@@ -47,7 +49,6 @@ export type ClientGameInstance = {
     scoreContent: Frame,
     dieRollContainer: Frame,
     dieRollAnimationContent: TextLabel,
-    gameState: GameTypes.GameState,
     buttonsByUserId: { [CommonTypes.UserId]: { TextButton } },
     scoreLabelsByUserId: { [CommonTypes.UserId]: TextLabel },
 
@@ -60,6 +61,8 @@ export type ClientGameInstance = {
     -- The functions any ClientGameInstance needs to implement to work with RBG library.
     destroy: (ClientGameInstance) -> nil,
     onPlayerLeftTable: (ClientGameInstance, CommonTypes.UserId) -> boolean,
+    notifyThatHostEndedGame: (ClientGameInstance, CommonTypes.GameEndDetails) -> boolean,
+    sanityCheck: (ClientGameInstance) -> nil,
 
     -- Other "private" functions.
     asyncBuildUI: (ClientGameInstance, Frame) -> nil,
@@ -125,6 +128,47 @@ function ClientGameInstance:onPlayerLeftTable(userId: CommonTypes.UserId): boole
     return true
 end
 
+function ClientGameInstance:notifyThatHostEndedGame(gameEndDetails: CommonTypes.GameEndDetais): boolean
+    assert(gameEndDetails, "gameEndDetails is nil")
+    -- Talk to users about why game ended.
+
+    -- We could look into gameState to figure out what's up but there may be weird timing issues.
+    -- Safer to just read details passed in.
+    -- Normal case: game was played to completion and someone won.
+    -- In that case everyone (including host) can see a "congrats" message.
+    if gameEndDetails.winnerUserId then
+        local winnerUserId = gameEndDetails.winnerUserId
+        -- Normal game end situation: game is over because someone won.
+        local winnerName = PlayerUtils.getName(winnerUserId)
+        local winnerScore = gameEndDetails.winnerScore
+        local title = "Congratulations " .. winnerName .. "!"
+        local message = winnerName .. " won the game with a score of " .. winnerScore .. " points."
+        task.spawn(function()
+            DialogUtils.showAckDialog(title, message)
+        end)
+        -- No need for system-level messaging: return true.
+        return true
+    end
+
+    -- Other reasons the game might end:
+    -- * Host used a control to end the game prematurely.
+    -- * Host left the table.
+    -- Both of these are handled at system level.  This game instances doesn't care to say
+    -- anything different: just return false.
+    return false
+end
+
+function ClientGameInstance:sanityCheck()
+    local tableDescription = self.tableDescription
+    TableDescription.sanityCheck(tableDescription)
+
+    -- Table Description should be playing and have a GUID.
+    assert(tableDescription.gameInstanceGUID, "clientGameInstance.tableDescription.gameInstanceGUID is nil")
+    assert(tableDescription.gameTableState == GameTableStates.Playing, "clientGameInstance.tableDescription.gameTableState is not Playing")
+
+    GameState.sanityCheck(self.gameState)
+end
+
 ClientGameInstance.new = function(tableDescription: CommonTypes.TableDescription): ClientGameInstance
     assert(tableDescription, "tableDescription is nil")
     assert(tableDescription.gameInstanceGUID, "tableDescription.gameInstanceGUID is nil")
@@ -137,6 +181,8 @@ ClientGameInstance.new = function(tableDescription: CommonTypes.TableDescription
     self.tableDescription = tableDescription
     self.buttonsByUserId = {}
     self.scoreLabelsByUserId = {}
+
+    self.gameState = GameState.createNewGameState(tableDescription)
 
     local onGameStateUpdated = function(gameState: GameTypes.GameState, opt_actionDescription: GameTypes.ActionDescription?)
         Utils.debugPrint("GamePlay", "ClientGameInstance onGameStateUpdated gameState = ", gameState)

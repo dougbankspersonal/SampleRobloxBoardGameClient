@@ -10,6 +10,7 @@ local RobloxBoardGameShared = ReplicatedStorage.RobloxBoardGameShared
 local CommonTypes = require(RobloxBoardGameShared.Types.CommonTypes)
 local TableDescription = require(RobloxBoardGameShared.Modules.TableDescription)
 local Utils = require(RobloxBoardGameShared.Modules.Utils)
+local GameTableStates = require(RobloxBoardGameShared.Globals.GameTableStates)
 
 -- SRBGCShared
 local SRBGCShared = ReplicatedStorage.SRBGCShared
@@ -58,13 +59,6 @@ ServerGameInstance.new = function(tableDescription: CommonTypes.TableDescription
     self.gameState = GameState.createNewGameState(self.tableDescription)
 
     return self
-end
-
-function ServerGameInstance:sanityCheck()
-    assert(self.tableDescription, "tableDescription is nil")
-    assert(self.gameState, "gameState is nil")
-    TableDescription.sanityCheck(self.tableDescription)
-    GameState.sanityCheck(self.gameState)
 end
 
 function ServerGameInstance:destroy()
@@ -174,5 +168,29 @@ function ServerGameInstance:dieRoll(rollRequesterUserId: CommonTypes.UserId, die
 
     return true, actionDescription
 end
+
+function ServerGameInstance:getGameSpecificGameEndDetails(): any?
+    local gameSpecificGameEndDetails = {}
+
+    -- Did someone win? If so get score and winner id.
+    if self.gameState.opt_winnerUserId then
+        local score = self.gameState.scoresByUserId[self.gameState.opt_winnerUserId]
+        gameSpecificGameEndDetails.winnerUserId = self.gameState.opt_winnerUserId
+        gameSpecificGameEndDetails.winnerScore = score
+    end
+    return gameSpecificGameEndDetails
+end
+
+function ServerGameInstance:sanityCheck()
+    local tableDescription = self.tableDescription
+    TableDescription.sanityCheck(tableDescription)
+
+    -- Table Description should be playing and have a GUID.
+    assert(tableDescription.gameInstanceGUID, "clientGameInstance.tableDescription.gameInstanceGUID is nil")
+    assert(tableDescription.gameTableState == GameTableStates.Playing, "clientGameInstance.tableDescription.gameTableState is not Playing")
+
+    GameState.sanityCheck(self.gameState)
+end
+
 
 return ServerGameInstance
