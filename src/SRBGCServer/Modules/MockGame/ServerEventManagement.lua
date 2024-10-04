@@ -45,7 +45,7 @@ ServerEventManagement.setupGameInstanceEventsAndFunctions = function(gameInstanc
         return gameState
     end)
 
-    ServerEventUtils.createGameRemoteEvent(gameInstanceGUID, GameEventUtils.EventName_DieRoll, function(player: Player, dieType: GameTypes.DieType)
+    ServerEventUtils.createGameRemoteEvent(gameInstanceGUID, GameEventUtils.EventNameRequestDieRoll, function(player: Player, dieType: GameTypes.DieType)
         assert(player, "Player is nil")
         assert(dieType, "dieType is nil")
         -- add the logic for die roll here.

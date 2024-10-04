@@ -1,5 +1,5 @@
 local GameEventUtils = {}
 
-GameEventUtils.EventName_DieRoll = "DieRoll"
+GameEventUtils.EventNameRequestDieRoll = "DieRoll"
 
 return GameEventUtils

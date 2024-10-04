@@ -33,6 +33,8 @@ export type ServerGameInstance = {
     -- user rolls a die.  Game state changes. Return the value they rolled.
     dieRoll: (ServerGameInstance, CommonTypes.UserId, GameTypes.DieType) -> (boolean, GameTypes.ActionDescription?),
     checkForEndGame: (ServerGameInstance) -> boolean,
+    -- For debug purposes.  Jump to some random valid end game scenario.
+    mockEndGame: (ServerGameInstance) -> nil,
 
     -- The functions any ServerGameInstance needs to implement to work with RBG library.
     destroy: (ServerGameInstance) -> nil,

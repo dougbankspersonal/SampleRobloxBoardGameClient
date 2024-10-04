@@ -30,10 +30,10 @@ local maxScore = 10
 local ServerGameInstance = {}
 ServerGameInstance.__index = ServerGameInstance
 
-local function makeDieRollActionDescription(actorUserId: CommonTypes.UserId, dieType: GameTypes.DieType, dieRoll: number): GameTypes.ActionDescription
+local function makeDieRollActionDescription(actorUserId: CommonTypes.UserId, dieType: GameTypes.DieType, dieRollResult: number): GameTypes.ActionDescription
     local dieRollDetails: GameTypes.ActionDetailsDieRoll     = {
         dieType = dieType,
-        rollResult = dieRoll
+        dieRollResult = dieRollResult
     }
     local actionDescription: GameTypes.ActionDescription = {
         actionType = ActionTypes.DieRoll,
@@ -98,6 +98,12 @@ function ServerGameInstance:getGameOptions(): CommonTypes.NonDefaultGameOptions
     return self.tableDescription.opt_nonDefaultGameOptions or {}
 end
 
+function ServerGameInstance:mockEndGame()
+    while not self:checkForEndGame() do
+        self:dieRoll(self:getCurrentPlayerUserId(), DieTypes.Standard)
+    end
+end
+
 function ServerGameInstance:checkForEndGame(): boolean
     for userId, _ in self.gameState.scoresByUserId do
         if self:isPlayerOverMax(userId) then
@@ -126,24 +132,24 @@ function ServerGameInstance:dieRoll(rollRequesterUserId: CommonTypes.UserId, die
     end
 
     -- Roll a die, update game state.
-    local dieRoll = math.random(1, 6)
+    local dieRollResult = math.random(1, 6)
 
     local gameOptions = self:getGameOptions()
 
     if dieType == DieTypes.Smushed then
-        if dieRoll == 1 then
-            dieRoll = 2
+        if dieRollResult == 1 then
+            dieRollResult = 2
         end
-        if dieRoll == 6 then
-            dieRoll = 5
+        if dieRollResult == 6 then
+            dieRollResult = 5
         end
     elseif (not gameOptions.No_Advantage_Die) and dieType == DieTypes.Advantage then
-        dieRoll = dieRoll + 1
+        dieRollResult = dieRollResult + 1
     elseif not dieType == DieTypes.Standard then
         return false
     end
 
-    self.gameState.scoresByUserId[currentPlayerUserId] = (self.gameState.scoresByUserId[currentPlayerUserId] or 0) + dieRoll
+    self.gameState.scoresByUserId[currentPlayerUserId] = (self.gameState.scoresByUserId[currentPlayerUserId] or 0) + dieRollResult
 
     -- Check for the end of the game.
     if gameOptions.Evalaute_At_End_Of_Round then
@@ -154,8 +160,9 @@ function ServerGameInstance:dieRoll(rollRequesterUserId: CommonTypes.UserId, die
         self:checkForEndGame()
     end
 
-    local actionDescription = makeDieRollActionDescription(currentPlayerUserId, dieType, dieRoll)
+    local actionDescription = makeDieRollActionDescription(currentPlayerUserId, dieType, dieRollResult)
 
+    -- Advance the current player.
     self.gameState.currentPlayerIndex = 1 + (self.gameState.currentPlayerIndex) % #self.gameState.playerIdsInTurnOrder
 
     return true, actionDescription

@@ -27,7 +27,7 @@ export type ActionTypes = {
 
 export type ActionDetailsDieRoll = {
     dieType: DieType,
-    rollResult: number,
+    dieRollResult: number,
 }
 
 -- If there were other action types, 'or' them together here.

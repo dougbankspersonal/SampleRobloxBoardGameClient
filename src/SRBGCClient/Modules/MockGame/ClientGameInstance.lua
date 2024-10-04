@@ -417,7 +417,7 @@ function ClientGameInstance:animateDieRoll(actionDetailsDieRoll: GameTypes.Actio
         self.dieRollAnimationContent.BackgroundColor3 = Color3.fromRGB(230, 240, 255)
     end
 
-    self.dieRollAnimationContent.Text = tostring(actionDetailsDieRoll.rollResult)
+    self.dieRollAnimationContent.Text = tostring(actionDetailsDieRoll.dieRollResult)
 
     -- Animate it in
     local uiScale  = self.dieRollAnimationContent:FindFirstChild("TweenScaling")
@@ -437,7 +437,7 @@ end
 function ClientGameInstance:notifyDieRollFinished(actorUserId:CommonTypes.UserId, actionDetailsDieRoll: GameTypes.ActionDetailsDieRoll, onNotifyFinished: () -> ())
     local actorName = PlayerUtils.getName(actorUserId)
 
-    local _message = actorName .. " rolled a " .. tostring(actionDetailsDieRoll.rollResult)
+    local _message = actorName .. " rolled a " .. tostring(actionDetailsDieRoll.dieRollResult)
     self.messageLog:enqueueMessage(_message, onNotifyFinished)
 end
 

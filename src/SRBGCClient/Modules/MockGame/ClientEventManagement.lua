@@ -39,8 +39,8 @@ end
 -- Works iff local player is current player, or current player is a mock and
 -- local player is the host.
 ClientEventManagement.requestDieRoll = function(gameInstanceGUID: CommonTypes.GameInstanceGUID, dieType: GameTypes.DieType)
-    local event = EventUtils.getRemoteEventForGame(gameInstanceGUID, GameEventUtils.EventName_DieRoll)
-    assert(event, GameEventUtils.EventName_DieRoll .. " event missing")
+    local event = EventUtils.getRemoteEventForGame(gameInstanceGUID, GameEventUtils.EventNameRequestDieRoll)
+    assert(event, GameEventUtils.EventNameRequestDieRoll .. " event missing")
     event:FireServer(dieType)
 end
 
