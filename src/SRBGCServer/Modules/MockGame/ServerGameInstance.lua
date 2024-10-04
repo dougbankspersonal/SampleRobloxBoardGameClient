@@ -16,7 +16,6 @@ local GameTableStates = require(RobloxBoardGameShared.Globals.GameTableStates)
 local SRBGCShared = ReplicatedStorage.SRBGCShared
 local GameTypes = require(SRBGCShared.Modules.MockGame.GameTypes)
 local DieTypes = require(SRBGCShared.Modules.MockGame.DieTypes)
-local GameUtils = require(SRBGCShared.Modules.MockGame.GameUtils)
 local GameState = require(SRBGCShared.Modules.MockGame.GameState)
 local ActionTypes = require(SRBGCShared.Modules.MockGame.ActionTypes)
 
@@ -113,11 +112,8 @@ function ServerGameInstance:dieRoll(rollRequesterUserId: CommonTypes.UserId, die
     assert(rollRequesterUserId, "rollRequesterUserId is nil")
     assert(dieType, "dieType is nil")
 
-    Utils.debugPrint("GamePlay", "ServerGameInstance.dieRoll 001")
-
     -- Better be a member of the game.
     if not self.tableDescription.memberUserIds[rollRequesterUserId] then
-        Utils.debugPrint("GamePlay", "ServerGameInstance.dieRoll 002")
         return false
     end
 
@@ -125,14 +121,12 @@ function ServerGameInstance:dieRoll(rollRequesterUserId: CommonTypes.UserId, die
     local currentPlayerUserId = self:getCurrentPlayerUserId()
 
     -- Either this is the player requesting the roll, or it's a mock and the player requesting the roll is the host.
-    if not GameUtils.firstUserCanPlayAsSecondUser(self.tableDescription, rollRequesterUserId, currentPlayerUserId) then
-        Utils.debugPrint("GamePlay", "ServerGameInstance.dieRoll 003")
+    if not Utils.firstUserCanPlayAsSecondUser(self.tableDescription, rollRequesterUserId, currentPlayerUserId) then
         return false
     end
 
     -- Roll a die, update game state.
     local dieRoll = math.random(1, 6)
-    Utils.debugPrint("GamePlay", "ServerGameInstance.dieRoll 004")
 
     local gameOptions = self:getGameOptions()
 
@@ -159,8 +153,6 @@ function ServerGameInstance:dieRoll(rollRequesterUserId: CommonTypes.UserId, die
     else
         self:checkForEndGame()
     end
-
-    Utils.debugPrint("GamePlay", "ServerGameInstance.dieRoll 005")
 
     local actionDescription = makeDieRollActionDescription(currentPlayerUserId, dieType, dieRoll)
 

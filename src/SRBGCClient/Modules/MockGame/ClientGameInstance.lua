@@ -107,7 +107,7 @@ ClientGameInstance.get = function(): ClientGameInstance?
 end
 
 function ClientGameInstance:destroy()
-    Utils.debugPrint("GamePlay", "ClientGameInstance destroy 001")
+    Utils.debugPrint("GamePlay", "ClientGameInstance destroy")
     _clientGameInstance = nil
     -- Anything else to clean up here?
 end
@@ -128,25 +128,35 @@ function ClientGameInstance:onPlayerLeftTable(userId: CommonTypes.UserId): boole
     return true
 end
 
-function ClientGameInstance:notifyThatHostEndedGame(gameEndDetails: CommonTypes.GameEndDetais): boolean
+function ClientGameInstance:notifyThatHostEndedGame(gameEndDetails: CommonTypes.GameEndDetails): boolean
     assert(gameEndDetails, "gameEndDetails is nil")
+    Utils.debugPrint("GamePlay", "ClientGameInstance:notifyThatHostEndedGame gameEndDetails = ", gameEndDetails)
+
     -- Talk to users about why game ended.
+    local gameSpecificDetails = gameEndDetails.gameSpecificDetails
+    if not gameSpecificDetails then
+        return
+    end
 
     -- We could look into gameState to figure out what's up but there may be weird timing issues.
     -- Safer to just read details passed in.
     -- Normal case: game was played to completion and someone won.
     -- In that case everyone (including host) can see a "congrats" message.
-    if gameEndDetails.winnerUserId then
-        local winnerUserId = gameEndDetails.winnerUserId
+    if gameSpecificDetails.winnerUserId then
+        Utils.debugPrint("GamePlay", "ClientGameInstance:notifyThatHostEndedGame gameEndDetails.winnerUserId = ", gameEndDetails.winnerUserId)
+        local winnerUserId = gameSpecificDetails.winnerUserId
         -- Normal game end situation: game is over because someone won.
         local winnerName = PlayerUtils.getName(winnerUserId)
-        local winnerScore = gameEndDetails.winnerScore
+        local winnerScore = gameSpecificDetails.winnerScore
+        Utils.debugPrint("GamePlay", "ClientGameInstance:notifyThatHostEndedGame winnerName = ", winnerName)
+        Utils.debugPrint("GamePlay", "ClientGameInstance:notifyThatHostEndedGame winnerScore = ", winnerScore)
         local title = "Congratulations " .. winnerName .. "!"
         local message = winnerName .. " won the game with a score of " .. winnerScore .. " points."
         task.spawn(function()
             DialogUtils.showAckDialog(title, message)
         end)
         -- No need for system-level messaging: return true.
+        Utils.debugPrint("GamePlay", "ClientGameInstance:notifyThatHostEndedGame returning true")
         return true
     end
 
@@ -185,8 +195,6 @@ ClientGameInstance.new = function(tableDescription: CommonTypes.TableDescription
     self.gameState = GameState.createNewGameState(tableDescription)
 
     local onGameStateUpdated = function(gameState: GameTypes.GameState, opt_actionDescription: GameTypes.ActionDescription?)
-        Utils.debugPrint("GamePlay", "ClientGameInstance onGameStateUpdated gameState = ", gameState)
-        Utils.debugPrint("GamePlay", "ClientGameInstance onGameStateUpdated opt_actionDescription = ", opt_actionDescription)
         self.gameState = gameState
         self:onGameStateUpdated(opt_actionDescription)
     end
@@ -221,9 +229,10 @@ function ClientGameInstance:buildUIInternal(parent: Frame)
     task.spawn(function()
         self.gameState = ClientEventManagement.getGameStateAsync(self.tableDescription.gameInstanceGUID)
 
-        -- add a button for each player the local user can control.
         for _, userId in self.gameState.playerIdsInTurnOrder do
+            -- Iff local player can act on this user's behalf, add controls for taking actions as this user.
             self:maybeAddRowForUser(parent, userId)
+            -- Always add a score for the user.
             self:addScoreForUser(userId)
         end
 
@@ -269,7 +278,7 @@ function ClientGameInstance:addScoreSection(parent: Frame)
 end
 
 function ClientGameInstance:maybeAddRowForUser(parent: Frame, userId: CommonTypes.UserId): Frame?
-    if not GameUtils.firstUserCanPlayAsSecondUser(self.tableDescription, self.localUserId, userId) then
+    if not Utils.firstUserCanPlayAsSecondUser(self.tableDescription, self.localUserId, userId) then
         return
     end
 
@@ -313,14 +322,11 @@ end
 local waitTime = GuiConstants.messageQueueTransparencyTweenTime + GuiConstants.scrollingFrameSlideTweenTime
 
 function ClientGameInstance:onGameStateUpdated(opt_actionDescription: GameTypes.ActionDescription?)
-    Utils.debugPrint("GamePlay", "onGameStateUpdated opt_actionDescription = ", opt_actionDescription)
-
     Utils.debugPrint("MessageLog", "onGameStateUpdated 001")
 
     -- if there's a description, first play it out/animate it.
     if opt_actionDescription then
         Utils.debugPrint("MessageLog", "onGameStateUpdated 002")
-        Utils.debugPrint("GamePlay", "onGameStateUpdated 001")
         -- Disable controls while animating.
         self:disableAllButtons()
 
@@ -352,11 +358,9 @@ function ClientGameInstance:onGameStateUpdated(opt_actionDescription: GameTypes.
             end)
         end
     else
-        Utils.debugPrint("GamePlay", "onGameStateUpdated 002")
         self:updateScores()
         self:displayNewTurnOrGameEnd()
     end
-    Utils.debugPrint("GamePlay", "onGameStateUpdated 003")
 end
 
 function ClientGameInstance:updateButtonActiveStates()
@@ -365,7 +369,7 @@ function ClientGameInstance:updateButtonActiveStates()
         local canPlay = false
         if not self.gameState.opt_winnerUserId then
             if userId == currentPlayerId then
-                canPlay = GameUtils.firstUserCanPlayAsSecondUser(self.tableDescription, self.localUserId, userId)
+                canPlay = Utils.firstUserCanPlayAsSecondUser(self.tableDescription, self.localUserId, userId)
             end
         end
         for _, button in buttonSet do
@@ -399,9 +403,7 @@ function ClientGameInstance:notifyDieRollStart(actorUserId: CommonTypes.UserId, 
     local actorPlayerName = PlayerUtils.getName(actorUserId)
     local message = actorPlayerName .. " is rolling the " .. GameUtils.getDieName(actionDetailsDieRoll.dieType) .. " die."
     -- Wait until message displays to continue...
-    Utils.debugPrint("GamePlay", "notifyDieRollStart 001")
     self.messageLog:enqueueMessage(message, onNotificationShown)
-    Utils.debugPrint("GamePlay", "notifyDieRollStart 002")
 end
 
 function ClientGameInstance:animateDieRoll(actionDetailsDieRoll: GameTypes.ActionDetailsDieRoll, onAnimationFinished: () -> ())

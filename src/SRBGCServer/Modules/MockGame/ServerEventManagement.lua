@@ -6,7 +6,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 -- Shared
 local RobloxBoardGameShared = ReplicatedStorage.RobloxBoardGameShared
 local CommonTypes = require(RobloxBoardGameShared.Types.CommonTypes)
-local Utils = require(RobloxBoardGameShared.Modules.Utils)
 
 -- Server
 local RobloxBoardGameServer = script.Parent.Parent.Parent.Parent.RobloxBoardGameServer
@@ -47,7 +46,6 @@ ServerEventManagement.setupGameInstanceEventsAndFunctions = function(gameInstanc
     end)
 
     ServerEventUtils.createGameRemoteEvent(gameInstanceGUID, GameEventUtils.EventName_DieRoll, function(player: Player, dieType: GameTypes.DieType)
-        Utils.debugPrint("GamePlay", "ServerEventManagement dieRoll handler")
         assert(player, "Player is nil")
         assert(dieType, "dieType is nil")
         -- add the logic for die roll here.
@@ -55,11 +53,8 @@ ServerEventManagement.setupGameInstanceEventsAndFunctions = function(gameInstanc
         assert(gameInstance, "Game instance not found for " .. gameInstanceGUID)
 
         local success, actionDescription = gameInstance:dieRoll(player.UserId, dieType)
-        Utils.debugPrint("GamePlay", "ServerEventManagement dieRoll handler success = ", success)
-        Utils.debugPrint("GamePlay", "ServerEventManagement dieRoll handler actionDescription = ", actionDescription)
 
         if success then
-            Utils.debugPrint("GamePlay", "ServerEventManagement dieRoll handler actionDescrition = ", actionDescription)
             ServerEventManagement.broadcastGameState(gameInstance, actionDescription)
         end
     end)
