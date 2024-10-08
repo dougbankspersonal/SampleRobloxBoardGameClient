@@ -5,14 +5,15 @@ There must be a 1-1 mapping between elements in this table and the games in Game
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
 
 -- RobloxBoardGameShared
 local RobloxBoardGameShared = ReplicatedStorage.RobloxBoardGameShared
 local CommonTypes = require(RobloxBoardGameShared.Types.CommonTypes)
 
 -- SRBGCClient
-local SRBGCClient = script.Parent
-local ClientGameInstance = require(SRBGCClient.Modules.MockGame.ClientGameInstance)
+local SRBGCClient = StarterGui.MainScreenGui.SRBGCClient
+local ClientGameInstance = require(SRBGCClient.MockGame.Classes.ClientGameInstance)
 
 local GameDetailsDeclaration = require(ReplicatedStorage.SRBGCShared.GameDetailsDeclaration)
 
@@ -23,12 +24,15 @@ local clientGameInstanceFunctionsByGameId = {} :: CommonTypes.ClientGameInstance
 ClientGameInstanceFunctionsDeclaration.addMockGames = function()
     for gameId, _ in GameDetailsDeclaration.getGameDetailsByGameId() do
         clientGameInstanceFunctionsByGameId[gameId] = {
-            makeClientGameInstance = function(tableDescription, parentFrame)
+            makeClientGameInstanceAsync = function(tableDescription, parentFrame)
                 local cgi = ClientGameInstance.new(tableDescription)
-                cgi:asyncBuildUI(parentFrame)
+                cgi:buildUIAsync(parentFrame)
                 return cgi
             end,
             getClientGameInstance = ClientGameInstance.get,
+            renderAnalyticsRecords = function(parent: Frame, records: {CommonTypes.AnalyticsRecord})
+                ClientGameInstance.renderAnalyticsRecords(gameId, parent, records)
+            end,
         }
     end
 end

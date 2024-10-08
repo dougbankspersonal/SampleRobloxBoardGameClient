@@ -1,16 +1,21 @@
 local ReplicatedStorage =  game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 local RunService = game:GetService("RunService")
 
 local Cryo = require(ReplicatedStorage.Cryo)
 
 -- RobloxBoardGameServer
-local RobloxBoardGameServer = script.Parent.Parent.RobloxBoardGameServer
+local RobloxBoardGameServer = ServerScriptService.RobloxBoardGameServer
 local ServerStartUp = require(RobloxBoardGameServer.StartupFiles.ServerStartUp)
 local GameDetailsDeclaration = require(ReplicatedStorage.SRBGCShared.GameDetailsDeclaration)
 local DebugStateHandler = require(RobloxBoardGameServer.Modules.DebugStateHandler)
 
+-- RobloxBoardGameShared
+local RobloxBoardGameShared = ReplicatedStorage.RobloxBoardGameShared
+local Utils = require(RobloxBoardGameShared.Modules.Utils)
+
 -- SRBGCServer
-local SRBGCServer = script.Parent
+local SRBGCServer = ServerScriptService.SRBGCServer
 local ServerGameInstanceConstructorsDeclaration = require(SRBGCServer.ServerGameInstanceConstructorsDeclaration)
 
 assert(GameDetailsDeclaration.getGameDetailsByGameId() ~= nil, ", GameDetailsDeclaration.getGameDetailsByGameId() is nil")
@@ -22,23 +27,18 @@ ServerGameInstanceConstructorsDeclaration.addMockGames()
 local gameDetailsByGameId = GameDetailsDeclaration.getGameDetailsByGameId()
 local serverGameInstanceConstructorsByGameId = ServerGameInstanceConstructorsDeclaration.getServerGameInstanceConstructorsByGameId()
 
--- FIXME(dbanks)
--- There should be some better way to do this.
--- If you're in a plugin you can ask for the id of the user logged in to Studio, but
--- this is not a plugin.
--- Hardwiring to my account id.
-local RealPlayerUserId = 5845980262
-
 ServerStartUp.ServerStartUp(gameDetailsByGameId, serverGameInstanceConstructorsByGameId)
 
 -- Do any debug setup we want to do.
 if RunService:IsStudio() then
     -- See CommonTypes.lua DebugStateConfigs for details on what configs can be set here.
     local gameIds = Cryo.Dictionary.keys(gameDetailsByGameId)
+    -- Sort em so it's deterministic.
+    gameIds = Cryo.List.sort(gameIds)
     local gameId = gameIds[1]
 
-    -- Make an instance of thhe game,
-    local gameTable = DebugStateHandler.enterDebugState(RealPlayerUserId, {
+    -- Make an instance of the game.
+    local gameTable = DebugStateHandler.enterDebugState(Utils.RealPlayerUserId, {
         gameId = gameId,
         startGame = true,
     })
@@ -46,5 +46,5 @@ if RunService:IsStudio() then
     assert(serverGameInstance, "serverGameInstance is nil")
 
     -- Jump to some final state.
-    serverGameInstance:mockEndGame()
+    serverGameInstance:runMockGame()
 end

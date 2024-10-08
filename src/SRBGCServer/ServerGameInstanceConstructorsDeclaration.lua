@@ -5,6 +5,7 @@ There must be a 1-1 mapping between elements in this table and the games in Game
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 
 -- RobloxBoardGameShared
 local RobloxBoardGameShared = ReplicatedStorage.RobloxBoardGameShared
@@ -15,8 +16,8 @@ local SRBGCShared = ReplicatedStorage.SRBGCShared
 local GameDetailsDeclaration = require(SRBGCShared.GameDetailsDeclaration)
 
 -- SRBGCServer
-local SRBGCServer = script.Parent
-local ServerGameInstance = require(SRBGCServer.Modules.MockGame.ServerGameInstance)
+local SRBGCServer = ServerScriptService.SRBGCServer
+local ServerGameInstance = require(SRBGCServer.MockGame.Classes.ServerGameInstance)
 
 local ServerGameInstanceConstructorsDeclaration = {}
 

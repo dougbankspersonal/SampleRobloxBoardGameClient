@@ -1,10 +1,12 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
+
 local GameDetailsDeclaration = require(ReplicatedStorage.SRBGCShared.GameDetailsDeclaration)
 
 local RobloxBoardGameClient = script.Parent.Parent.RobloxBoardGameClient
 local ClientStartUp = require(RobloxBoardGameClient.StartupFiles.ClientStartUp)
 
-local SRBGCClient = script.Parent
+local SRBGCClient = StarterGui.MainScreenGui.SRBGCClient
 local ClientGameInstanceFunctionsDeclaration = require(SRBGCClient.ClientGameInstanceFunctionsDeclaration)
 
 local screenGui = script.Parent.Parent

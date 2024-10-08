@@ -2,14 +2,15 @@
 -- Moved out from ServerGameInstance file to avoid circular dependencies.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 
 -- RobloxBoardGameShared
 local RobloxBoardGameShared = ReplicatedStorage.RobloxBoardGameShared
 local CommonTypes = require(RobloxBoardGameShared.Types.CommonTypes)
 
 -- SRBGCServer
-local SRBGCServer = script.Parent.Parent.Parent
-local ServerTypes = require(SRBGCServer.Modules.MockGame.ServerTypes)
+local SRBGCServer = ServerScriptService.SRBGCServer
+local ServerTypes = require(SRBGCServer.MockGame.Types.ServerTypes)
 
 local ServerGameInstanceStorage = {}
 

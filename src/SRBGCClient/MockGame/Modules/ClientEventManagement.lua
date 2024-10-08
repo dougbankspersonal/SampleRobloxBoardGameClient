@@ -10,9 +10,9 @@ local EventUtils = require(RobloxBoardGameShared.Modules.EventUtils)
 
 -- SRBGCShared
 local SRBGCShared = ReplicatedStorage.SRBGCShared
-local GameTypes = require(SRBGCShared.Modules.MockGame.GameTypes)
-local GameState = require(SRBGCShared.Modules.MockGame.GameState)
-local GameEventUtils = require(SRBGCShared.Modules.MockGame.GameEventUtils)
+local GameTypes = require(SRBGCShared.MockGame.Types.GameTypes)
+local GameState = require(SRBGCShared.MockGame.Modules.GameState)
+local GameEventNames = require(SRBGCShared.MockGame.Globals.GameEventNames)
 
 local ClientEventManagement = {}
 
@@ -39,8 +39,8 @@ end
 -- Works iff local player is current player, or current player is a mock and
 -- local player is the host.
 ClientEventManagement.requestDieRoll = function(gameInstanceGUID: CommonTypes.GameInstanceGUID, dieType: GameTypes.DieType)
-    local event = EventUtils.getRemoteEventForGame(gameInstanceGUID, GameEventUtils.EventNameRequestDieRoll)
-    assert(event, GameEventUtils.EventNameRequestDieRoll .. " event missing")
+    local event = EventUtils.getRemoteEventForGame(gameInstanceGUID, GameEventNames.EventNameRequestDieRoll)
+    assert(event, GameEventNames.EventNameRequestDieRoll .. " event missing")
     event:FireServer(dieType)
 end
 

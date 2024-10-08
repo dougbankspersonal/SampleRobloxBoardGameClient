@@ -6,7 +6,7 @@ local CommonTypes = require(RobloxBoardGameShared.Types.CommonTypes)
 
 -- SRBGCShared
 local SRBGCShared = ReplicatedStorage.SRBGCShared
-local GameTypes = require(SRBGCShared.Modules.MockGame.GameTypes)
+local GameTypes = require(SRBGCShared.MockGame.Types.GameTypes)
 
 local ServerTypes = {}
 
@@ -32,9 +32,12 @@ export type ServerGameInstance = {
     -- non-const functions.  Each returns true iff something changed.
     -- user rolls a die.  Game state changes. Return the value they rolled.
     dieRoll: (ServerGameInstance, CommonTypes.UserId, GameTypes.DieType) -> (boolean, GameTypes.ActionDescription?),
-    checkForEndGame: (ServerGameInstance) -> boolean,
-    -- For debug purposes.  Jump to some random valid end game scenario.
-    mockEndGame: (ServerGameInstance) -> nil,
+    hasWinner: (ServerGameInstance) -> boolean,
+    -- Called at the end of every turn.
+    -- Evaluate whether game has a winner.  If so set the winnerId.
+    maybeSetWinner: (ServerGameInstance) -> nil,
+    -- For debug purposes.  Do an automated run thru the game.
+    runMockGame: (ServerGameInstance) -> nil,
 
     -- The functions any ServerGameInstance needs to implement to work with RBG library.
     destroy: (ServerGameInstance) -> nil,

@@ -2,17 +2,20 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RobloxBoardGameShared = ReplicatedStorage.RobloxBoardGameShared
 local CommonTypes = require(RobloxBoardGameShared.Types.CommonTypes)
 
+local SRBGCShared = ReplicatedStorage.SRBGCShared
+local GameOptionIds = require(SRBGCShared.MockGame.Globals.GameOptionIds)
+
 local GameDetailsDeclaration = {}
 
 local mockGameOptions = {
     {
         name = "Disable the Advatange Die",
-        gameOptionId = "No_Advantage_Die",
+        gameOptionId = GameOptionIds.NoAdvantageDie,
         description = "Players cannot opt to roll the advantage die.",
     },
     {
         name = "Evaluate Game End at the End of Round",
-        gameOptionId = "Evalaute_At_End_Of_Round",
+        gameOptionId = GameOptionIds.EvaluateAtEndOfRound,
         description = "Wait until a round is over until evaluating the game end",
     },
 }
@@ -27,28 +30,29 @@ local mockImages = {
 }
 
 local mockNames = {
-    "Zombies",
-    "Cupcake Aventure",
-    "Cosmic Encounter",
-    "Illuminati",
-    "Settlers of Catan",
-    "Monopoly",
-    "Risk",
-    "Clue",
-    "Sagrada",
-    "Betrayal at the House on the Hill",
-    "Mansions of Madness",
-    "Telestrations",
-    "Pictionary",
-    "Carcassonne",
-    "Ticket to Ride",
-    "Scrabble",
-    "Battleship",
-    "Connect Four",
-    "Chess",
-    "Checkers",
-    "Go",
     "Backgammon",
+    "Battleship",
+    "Betrayal at the House on the Hill",
+    "Carcassonne",
+    "Checkers",
+    "Chess",
+    "Clue",
+    "Connect Four",
+    "Cosmic Encounter",
+    "Cupcake Aventure",
+    "Go",
+    "Illuminati",
+    "Mansions of Madness",
+    "Monopoly",
+    "Pictionary",
+    "Risk",
+    "Sagrada",
+    "Scrabble",
+    "Settlers of Catan",
+    "Telestrations",
+    "Ticket to Ride",
+    "Zombies",
+
 }
 
 local mockGameId = 1000

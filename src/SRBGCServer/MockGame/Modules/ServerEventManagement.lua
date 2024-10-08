@@ -2,24 +2,25 @@
 Logic for creating and handling events on the server.
 ]]
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 
 -- Shared
 local RobloxBoardGameShared = ReplicatedStorage.RobloxBoardGameShared
 local CommonTypes = require(RobloxBoardGameShared.Types.CommonTypes)
 
 -- Server
-local RobloxBoardGameServer = script.Parent.Parent.Parent.Parent.RobloxBoardGameServer
+local RobloxBoardGameServer = ServerScriptService.RobloxBoardGameServer
 local ServerEventUtils = require(RobloxBoardGameServer.Modules.ServerEventUtils)
 
 -- SRBGCShared
 local SRBGCShared = ReplicatedStorage.SRBGCShared
-local GameTypes = require(SRBGCShared.Modules.MockGame.GameTypes)
-local GameEventUtils = require(SRBGCShared.Modules.MockGame.GameEventUtils)
+local GameTypes = require(SRBGCShared.MockGame.Types.GameTypes)
+local GameEventNames = require(SRBGCShared.MockGame.Globals.GameEventNames)
 
 -- SRBGCServer
-local SRBGCServer = script.Parent.Parent.Parent
-local ServerTypes = require(SRBGCServer.Modules.MockGame.ServerTypes)
-local ServerGameInstanceStorage = require(SRBGCServer.Modules.MockGame.ServerGameInstanceStorage)
+local SRBGCServer = ServerScriptService.SRBGCServer
+local ServerTypes = require(SRBGCServer.MockGame.Types.ServerTypes)
+local ServerGameInstanceStorage = require(SRBGCServer.MockGame.Modules.ServerGameInstanceStorage)
 
 local ServerEventManagement = {}
 
@@ -45,7 +46,7 @@ ServerEventManagement.setupGameInstanceEventsAndFunctions = function(gameInstanc
         return gameState
     end)
 
-    ServerEventUtils.createGameRemoteEvent(gameInstanceGUID, GameEventUtils.EventNameRequestDieRoll, function(player: Player, dieType: GameTypes.DieType)
+    ServerEventUtils.createGameRemoteEvent(gameInstanceGUID, GameEventNames.EventNameRequestDieRoll, function(player: Player, dieType: GameTypes.DieType)
         assert(player, "Player is nil")
         assert(dieType, "dieType is nil")
         -- add the logic for die roll here.

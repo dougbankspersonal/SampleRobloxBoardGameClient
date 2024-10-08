@@ -3,6 +3,8 @@
     Class for an instance of the mock die roll game.
 ]]
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
+
 local Cryo = require(ReplicatedStorage.Cryo)
 
 -- RobloxBoardGameShared
@@ -12,18 +14,24 @@ local TableDescription = require(RobloxBoardGameShared.Modules.TableDescription)
 local Utils = require(RobloxBoardGameShared.Modules.Utils)
 local GameTableStates = require(RobloxBoardGameShared.Globals.GameTableStates)
 
+-- RobloxBoardGameServer
+local RobloxBoardGameServer = ServerScriptService.RobloxBoardGameServer
+local ServerGameAnalytics = require(RobloxBoardGameServer.Analytics.ServerGameAnalytics)
+
 -- SRBGCShared
 local SRBGCShared = ReplicatedStorage.SRBGCShared
-local GameTypes = require(SRBGCShared.Modules.MockGame.GameTypes)
-local DieTypes = require(SRBGCShared.Modules.MockGame.DieTypes)
-local GameState = require(SRBGCShared.Modules.MockGame.GameState)
-local ActionTypes = require(SRBGCShared.Modules.MockGame.ActionTypes)
+local GameTypes = require(SRBGCShared.MockGame.Types.GameTypes)
+local DieTypes = require(SRBGCShared.MockGame.Types.DieTypes)
+local GameState = require(SRBGCShared.MockGame.Modules.GameState)
+local ActionTypes = require(SRBGCShared.MockGame.Types.ActionTypes)
+local AnalyticsEventNames = require(SRBGCShared.MockGame.Globals.AnalyticsEventNames)
+local GameOptionIds = require(SRBGCShared.MockGame.Globals.GameOptionIds)
 
 -- SRBGCServer
-local SRBGCServer = script.Parent.Parent.Parent
-local ServerEventManagement = require(SRBGCServer.Modules.MockGame.ServerEventManagement)
-local ServerTypes = require(SRBGCServer.Modules.MockGame.ServerTypes)
-local ServerGameInstanceStorage = require(SRBGCServer.Modules.MockGame.ServerGameInstanceStorage)
+local SRBGCServer = ServerScriptService.SRBGCServer
+local ServerEventManagement = require(SRBGCServer.MockGame.Modules.ServerEventManagement)
+local ServerTypes = require(SRBGCServer.MockGame.Types.ServerTypes)
+local ServerGameInstanceStorage = require(SRBGCServer.MockGame.Modules.ServerGameInstanceStorage)
 
 local maxScore = 10
 
@@ -42,7 +50,6 @@ local function makeDieRollActionDescription(actorUserId: CommonTypes.UserId, die
     }
     return actionDescription
 end
-
 
 ServerGameInstance.new = function(tableDescription: CommonTypes.TableDescription): ServerTypes.ServerGameInstance
     TableDescription.sanityCheck(tableDescription)
@@ -98,20 +105,42 @@ function ServerGameInstance:getGameOptions(): CommonTypes.NonDefaultGameOptions
     return self.tableDescription.opt_nonDefaultGameOptions or {}
 end
 
-function ServerGameInstance:mockEndGame()
-    while not self:checkForEndGame() do
-        self:dieRoll(self:getCurrentPlayerUserId(), DieTypes.Standard)
+function ServerGameInstance:runMockGame()
+    while not self:hasWinner() do
+        local dieType = math.random(0, DieTypes.NumDieTypes - 1)
+        self:dieRoll(self:getCurrentPlayerUserId(), dieType)
     end
 end
 
-function ServerGameInstance:checkForEndGame(): boolean
-    for userId, _ in self.gameState.scoresByUserId do
-        if self:isPlayerOverMax(userId) then
-            self.gameState.opt_winnerUserId = userId
-            return true
+function ServerGameInstance:maybeSetWinner(): nil
+    local evaluateAtEndOfRound = TableDescription.getOptionValue(self.tableDescription, GameOptionIds.EvaluateAtEndOfRound)
+    Utils.debugPrint("Analytics", "maybeSetWinner evaluateAtEndOfRound = ", evaluateAtEndOfRound)
+    if evaluateAtEndOfRound then
+        Utils.debugPrint("Analytics", "self.gameState.currentPlayerIndex = ", self.gameState.currentPlayerIndex)
+        Utils.debugPrint("Analytics", "self.tableDescription.numPlayers = ", self.tableDescription.numPlayers)
+
+        if self.gameState.currentPlayerIndex ~= self.tableDescription.numPlayers then
+            return
         end
     end
-    return false
+
+    for index, userId in self.gameState.playerIdsInTurnOrder do
+       if self:isPlayerOverMax(userId) then
+            self.gameState.opt_winnerUserId = userId
+
+            -- Do some analytics.
+            ServerGameAnalytics.addRecordOfType(self.tableDescription.gameId, self.tableDescription.gameInstanceGUID, AnalyticsEventNames.RecordTypeGameWin, {
+                winnerId = userId,
+                winnerIndex = index,
+                numPlayers = #self.gameState.playerIdsInTurnOrder,
+            })
+            return
+        end
+    end
+end
+
+function ServerGameInstance:hasWinner(): boolean
+    return self.gameState.opt_winnerUserId ~= nil
 end
 
 function ServerGameInstance:dieRoll(rollRequesterUserId: CommonTypes.UserId, dieType: GameTypes.DieType): (boolean, GameTypes.ActionDescription?)
@@ -136,34 +165,36 @@ function ServerGameInstance:dieRoll(rollRequesterUserId: CommonTypes.UserId, die
 
     local gameOptions = self:getGameOptions()
 
-    if dieType == DieTypes.Smushed then
+    if dieType == DieTypes.Types.Smushed then
         if dieRollResult == 1 then
             dieRollResult = 2
         end
         if dieRollResult == 6 then
             dieRollResult = 5
         end
-    elseif (not gameOptions.No_Advantage_Die) and dieType == DieTypes.Advantage then
+    elseif (not gameOptions.No_Advantage_Die) and dieType == DieTypes.Types.Advantage then
         dieRollResult = dieRollResult + 1
-    elseif not dieType == DieTypes.Standard then
+    elseif not dieType == DieTypes.Types.Standard then
         return false
     end
 
     self.gameState.scoresByUserId[currentPlayerUserId] = (self.gameState.scoresByUserId[currentPlayerUserId] or 0) + dieRollResult
 
-    -- Check for the end of the game.
-    if gameOptions.Evalaute_At_End_Of_Round then
-        if self.gameState.currentPlayerIndex == #self.gameState.playerIdsInTurnOrder then
-            self:checkForEndGame()
-        end
-    else
-        self:checkForEndGame()
-    end
-
     local actionDescription = makeDieRollActionDescription(currentPlayerUserId, dieType, dieRollResult)
 
-    -- Advance the current player.
-    self.gameState.currentPlayerIndex = 1 + (self.gameState.currentPlayerIndex) % #self.gameState.playerIdsInTurnOrder
+    -- Do some analytics.
+    ServerGameAnalytics.addRecordOfType(self.tableDescription.gameId, self.tableDescription.gameInstanceGUID, AnalyticsEventNames.RecordTypeDieRoll, {
+        userId = currentPlayerUserId,
+        dieType = dieType,
+    })
+
+    -- Check for the end of the game.
+    self:maybeSetWinner()
+
+    if not self:hasWinner() then
+        -- Advance the current player.
+        self.gameState.currentPlayerIndex = 1 + (self.gameState.currentPlayerIndex) % #self.gameState.playerIdsInTurnOrder
+    end
 
     return true, actionDescription
 end

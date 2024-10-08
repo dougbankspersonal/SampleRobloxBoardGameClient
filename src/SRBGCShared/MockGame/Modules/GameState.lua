@@ -12,7 +12,7 @@ local PlayerUtils = require(RobloxBoardGameShared.Modules.PlayerUtils)
 
 -- SRBGCShared
 local SRBGCShared = ReplicatedStorage.SRBGCShared
-local GameTypes = require(SRBGCShared.Modules.MockGame.GameTypes)
+local GameTypes = require(SRBGCShared.MockGame.Types.GameTypes)
 
 local GameState = {}
 
