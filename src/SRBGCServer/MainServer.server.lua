@@ -29,9 +29,7 @@ local serverGameInstanceConstructorsByGameId = ServerGameInstanceConstructorsDec
 
 ServerStartUp.ServerStartUp(gameDetailsByGameId, serverGameInstanceConstructorsByGameId)
 
--- Do any debug setup we want to do.
-if RunService:IsStudio() then
-    -- See CommonTypes.lua DebugStateConfigs for details on what configs can be set here.
+local function mockEndOfGame()
     local gameIds = Cryo.Dictionary.keys(gameDetailsByGameId)
     -- Sort em so it's deterministic.
     gameIds = Cryo.List.sort(gameIds)
@@ -47,4 +45,9 @@ if RunService:IsStudio() then
 
     -- Jump to some final state.
     serverGameInstance:runMockGame()
+end
+
+-- Do any debug setup we want to do.
+if RunService:IsStudio() then
+    -- mockEndOfGame()
 end

@@ -7,15 +7,12 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local StarterGui = game:GetService("StarterGui")
 
-local Cryo = require(ReplicatedStorage.Cryo)
-
 -- RobloxBoardGameShared
 local RobloxBoardGameShared = ReplicatedStorage.RobloxBoardGameShared
 local CommonTypes = require(RobloxBoardGameShared.Types.CommonTypes)
 local Utils = require(RobloxBoardGameShared.Modules.Utils)
 local PlayerUtils = require(RobloxBoardGameShared.Modules.PlayerUtils)
 local TableDescription= require(RobloxBoardGameShared.Modules.TableDescription)
-local GameDetails = require(RobloxBoardGameShared.Globals.GameDetails)
 local GameTableStates = require(RobloxBoardGameShared.Globals.GameTableStates)
 
 -- RobloxBoardGameClient
@@ -33,7 +30,6 @@ local GameUtils = require(SRBGCShared.MockGame.Modules.GameUtils)
 local DieTypes = require(SRBGCShared.MockGame.Types.DieTypes)
 local ActionTypes = require(SRBGCShared.MockGame.Types.ActionTypes)
 local GameState = require(SRBGCShared.MockGame.Modules.GameState)
-local AnalyticsEventNames = require(SRBGCShared.MockGame.Globals.AnalyticsEventNames)
 
 -- SRBGCClient
 local SRBGCClient = StarterGui.MainScreenGui.SRBGCClient
@@ -51,8 +47,7 @@ export type ClientGameInstance = {
     gameState: GameTypes.GameState,
     localUserId: CommonTypes.UserId,
     messageLog: MessageLog.MessageLog,
-    scoreContent: Frame,
-    dieRollContainer: Frame,
+    scoreRow: Frame,
     dieRollAnimationContent: TextLabel,
     buttonsByUserId: { [CommonTypes.UserId]: { TextButton } },
     scoreLabelsByUserId: { [CommonTypes.UserId]: TextLabel },
@@ -62,7 +57,6 @@ export type ClientGameInstance = {
     new: (gameInstanceGUID: CommonTypes.GameInstanceGUID, tableDescription: CommonTypes.TableDescription) -> ClientGameInstance,
     -- accessor.
     get: () -> ClientGameInstance?,
-    renderAnalyticsRecords: (CommonTypes.GameId, Frame, {CommonTypes.AnalyticsRecord}) -> nil,
 
     -- The functions any ClientGameInstance needs to implement to work with RBG library.
     destroy: (ClientGameInstance) -> nil,
@@ -95,8 +89,8 @@ local function addButtonForDie(gameInstanceGUID: CommonTypes.GameInstanceGUID, p
         ClientEventManagement.requestDieRoll(gameInstanceGUID, dieType)
     end
 
-    local _, button = GuiUtils.addStandardTextButtonInContainer(parent, "DieButton", callback, {
-        Text = GameUtils.getDieName(dieType),
+    local _, button = GuiUtils.addStandardTextButtonInContainer(parent, GameUtils.getDieName(dieType), callback, {
+        Name = GameUtils.getDieName(dieType),
         Active = false,
         LayoutOrder = 10 + dieType,
         AutomaticSize = Enum.AutomaticSize.XY,
@@ -111,111 +105,6 @@ local _clientGameInstance = nil
 
 function ClientGameInstance.get(): ClientGameInstance?
     return _clientGameInstance
-end
-
-export type NthPlayerWins = {
-    [number]: number
-}
-
-export type NthPlayerWinsByNumPlayers = {
-    [number]: NthPlayerWins
-}
-
-local function getNthPlayerWinsByNumPlayers(records: {CommonTypes.AnalyticsRecord}) : NthPlayerWinsByNumPlayers
-    local nthPlayerWinsByNumPlayers = {}
-
-    for _, record in records do
-        if record.recordType == AnalyticsEventNames.RecordTypeGameWin then
-            local numPlayers = record.value.numPlayers
-            assert(numPlayers, "numPlayers is nil")
-            local nthPlayerWins = nthPlayerWinsByNumPlayers[numPlayers] or {}
-            local winnerIndex = record.value.winnerIndex
-            local currentCount = nthPlayerWins[winnerIndex] or 0
-            currentCount = currentCount + 1
-            nthPlayerWins[winnerIndex] = currentCount
-            nthPlayerWinsByNumPlayers[numPlayers] = nthPlayerWins
-        end
-    end
-
-    return nthPlayerWinsByNumPlayers
-end
-
-local function makeTable(parent: GuiObject, title:string, rows, numColumns)
-    local titleRow = GuiUtils.addRowAndReturnRowContent(parent, "TableTitle", {
-        horizontalAlignment = Enum.HorizontalAlignment.Left,
-    })
-    GuiUtils.addTextLable(titleRow, title, {
-        Name = "Title",
-        Font = Enum.Font.SourceSansBold,
-        TextSize = 18,
-    })
-
-    for _, row in rows do
-        local thisRowContnet = GuiUtils.addRowAndReturnRowContent(parent, "TableRow", {
-            horizontalAlignment = Enum.HorizontalAlignment.Left,
-        })
-        for i = 1, numColumns do
-           local message = row[i] or ""
-           message = tostring(message)
-           GuiUtils.addTextLabel(thisRowContnet, message, {
-               Name = "Cell",
-               Font = Enum.Font.SourceSans,
-               TextSize = 14,
-               AutomaticSize = Enum.AutomaticSize.Y,
-               Size = UDim2.fromOffset(100, 20),
-               BorderSizePixel = 1,
-           })
-        end
-    end
-end
-
-
-local function addNthPlayerAdvantageTable(gameId: CommonTypes.GameId, parent: Frame, analyticsRecords: {CommonTypes.AnalyticsRecord})
-    local title = "Nth Player Advantage"
-    local gameDetails = GameDetails.getGameDetails(gameId)
-
-    local rows = {}
-    Utils.debugPrint("Analytics", "addNthPlayerAdvantageTable gameDetails = ", gameDetails)
-
-    local nthPlayerWinsByNumPlayers = getNthPlayerWinsByNumPlayers(analyticsRecords)
-    Utils.debugPrint("Analytics", "addNthPlayerAdvantageTable nthPlayerWinsByNumPlayers = ", nthPlayerWinsByNumPlayers)
-
-    local topRow = {} :: {string}
-    Utils.debugPrint("Analytics", "addNthPlayerAdvantageTable 001 topRow = ", topRow)
-    table.insert(topRow, " ")
-    Utils.debugPrint("Analytics", "addNthPlayerAdvantageTable 002 topRow = ", topRow)
-    for i = 1, gameDetails.maxPlayers do
-        table.insert(topRow, "Player " .. tostring(i))
-    end
-    Utils.debugPrint("Analytics", "addNthPlayerAdvantageTable 003 topRow = ", topRow)
-    table.insert(rows, topRow)
-    Utils.debugPrint("Analytics", "addNthPlayerAdvantageTable rows = ", rows)
-
-    for numPlayers = gameDetails.minPlayers, gameDetails.maxPlayers do
-        local row = {}
-        table.insert(row, tostring(numPlayers) .. " Players")
-        row = Cryo.List.join(row, nthPlayerWinsByNumPlayers[numPlayers] or {})
-        table.insert(rows, row)
-    end
-
-    makeTable(parent, title, rows, gameDetails.maxPlayers + 1)
-end
-
-function ClientGameInstance.renderAnalyticsRecords(gameId: CommonTypes.GameId, parent: Frame, analyticsRecords: {CommonTypes.AnalyticsRecord})
-    -- Get rid of everything in there.
-    GuiUtils.destroyGuiObjectChildren(parent)
-
-    -- Put in a max size scrolling frame.
-    local scrollingFrame = Instance.new("ScrollingFrame")
-    scrollingFrame.Name = "AnalyticsScrollingFrame"
-    scrollingFrame.Parent = parent
-    scrollingFrame.Size = UDim2.fromScale(1, 1)
-    scrollingFrame.CanvasSize = UDim2.fromScale(0, 0)
-    scrollingFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    scrollingFrame.ScrollingDirection = Enum.ScrollingDirection.XY
-
-    addNthPlayerAdvantageTable(gameId, scrollingFrame, analyticsRecords)
-    -- addDieAdvantageTable(parent, analyticsRecords)
 end
 
 function ClientGameInstance:destroy()
@@ -357,12 +246,9 @@ end
 
 function ClientGameInstance:addDieRollAnimationSection(parent: Frame)
     assert(parent, "parent is nil")
-    self.dieRollContainer = GuiUtils.addRowAndReturnRowContent(parent, "DieRow")
-    self.dieRollContainer.Visible = false
-
     local dieRollAnimationHolder = Instance.new("Frame")
     dieRollAnimationHolder.Name = "DieRollAnimationHolder"
-    dieRollAnimationHolder.Parent = self.dieRollContainer
+    dieRollAnimationHolder.Parent = parent
     dieRollAnimationHolder.Size = UDim2.fromOffset(dieRollWidth, dieRollHeight)
     dieRollAnimationHolder.BackgroundTransparency = 1
 
@@ -383,10 +269,7 @@ end
 
 function ClientGameInstance:addScoreSection(parent: Frame)
     assert(parent, "parent is nil")
-    self.scoreContent = GuiUtils.addRowAndReturnRowContent(parent, "ScoreRow", {
-        labelText = "Scores",
-        fillDirection = Enum.FillDirection.Vertical
-    })
+    self.scoreRow = GuiUtils.addRow(parent, "ScoreRow")
 end
 
 function ClientGameInstance:maybeAddRowForUser(parent: Frame, userId: CommonTypes.UserId): Frame?
@@ -394,26 +277,32 @@ function ClientGameInstance:maybeAddRowForUser(parent: Frame, userId: CommonType
         return
     end
 
-    local content = GuiUtils.addRowAndReturnRowContent(parent, "UserRow", {
-        labelText = "Roll for " .. PlayerUtils.getName(userId),
-        horizontalAlignment = Enum.HorizontalAlignment.Center,
-    })
+    local row = GuiUtils.addLabeledRow(parent, "UserRow", "Roll for " .. PlayerUtils.getName(userId), function(_parent)
+        GuiUtils.addUIListLayout(_parent, {
+            FillDirection = Enum.FillDirection.Horizontal,
+            HorizontalAlignment = Enum.HorizontalAlignment.Left,
+            VerticalAlignment = Enum.VerticalAlignment.Top,
+        })
+        self.buttonsByUserId[userId] = {}
+        for _, dieType in DieTypes.Types do
+            local textButton = addButtonForDie(self.tableDescription.gameInstanceGUID, _parent, dieType)
+            table.insert(self.buttonsByUserId[userId], textButton)
+        end
+    end)
 
-    self.buttonsByUserId[userId] = {}
-    for _, dieType in DieTypes.Types do
-        local textButton = addButtonForDie(self.tableDescription.gameInstanceGUID, content, dieType)
-        table.insert(self.buttonsByUserId[userId], textButton)
-    end
-
-    return content
+    return row
 end
 
 function ClientGameInstance:addScoreForUser(userId: CommonTypes.UserId): TextLabel
-    local content = GuiUtils.addRowAndReturnRowContent(self.scoreContent, "ScoreRow" .. userId, {
-        labelText = PlayerUtils.getName(userId) .. ":",
-        horizontalAlignment = Enum.HorizontalAlignment.Left,
+    local row = GuiUtils.addRow(self.scoreRow, "ScoreRow" .. userId)
+    local userName = PlayerUtils.getName(userId)
+    GuiUtils.addTextLabel(row, GuiUtils.bold(userName), {
+        Name = "UserName",
+        RichText = true,
+        AutomaticSize = Enum.AutomaticSize.XY,
+        Size = UDim2.fromScale(0, 0),
     })
-    local scoreLabel = GuiUtils.addTextLabel(content, "0", {
+    local scoreLabel = GuiUtils.addTextLabel(row, "0", {
         Name = "Score",
         RichText = true,
         AutomaticSize = Enum.AutomaticSize.XY,
@@ -519,7 +408,7 @@ function ClientGameInstance:notifyDieRollStart(actorUserId: CommonTypes.UserId, 
 end
 
 function ClientGameInstance:animateDieRoll(actionDetailsDieRoll: GameTypes.ActionDetailsDieRoll, onAnimationFinished: () -> ())
-    self.dieRollContainer.Visible = true
+    self.dieRollAnimationContent.Visible = true
 
     if actionDetailsDieRoll.dieType == DieTypes.Types.Standard then
         self.dieRollAnimationContent.BackgroundColor3 = Color3.fromRGB(255, 230, 240)

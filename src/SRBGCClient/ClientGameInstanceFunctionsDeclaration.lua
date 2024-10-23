@@ -14,6 +14,7 @@ local CommonTypes = require(RobloxBoardGameShared.Types.CommonTypes)
 -- SRBGCClient
 local SRBGCClient = StarterGui.MainScreenGui.SRBGCClient
 local ClientGameInstance = require(SRBGCClient.MockGame.Classes.ClientGameInstance)
+local AnalyticsView = require(SRBGCClient.MockGame.Analytics.AnalyticsView)
 
 local GameDetailsDeclaration = require(ReplicatedStorage.SRBGCShared.GameDetailsDeclaration)
 
@@ -30,8 +31,8 @@ ClientGameInstanceFunctionsDeclaration.addMockGames = function()
                 return cgi
             end,
             getClientGameInstance = ClientGameInstance.get,
-            renderAnalyticsRecords = function(parent: Frame, records: {CommonTypes.AnalyticsRecord})
-                ClientGameInstance.renderAnalyticsRecords(gameId, parent, records)
+            renderAnalyticsRecords = function(...)
+                AnalyticsView.renderAnalyticsRecords(gameId, ...)
             end,
         }
     end

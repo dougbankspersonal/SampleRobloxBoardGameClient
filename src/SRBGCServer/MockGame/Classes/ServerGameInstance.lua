@@ -24,7 +24,7 @@ local GameTypes = require(SRBGCShared.MockGame.Types.GameTypes)
 local DieTypes = require(SRBGCShared.MockGame.Types.DieTypes)
 local GameState = require(SRBGCShared.MockGame.Modules.GameState)
 local ActionTypes = require(SRBGCShared.MockGame.Types.ActionTypes)
-local AnalyticsEventNames = require(SRBGCShared.MockGame.Globals.AnalyticsEventNames)
+local AnalyticsEventTypes = require(SRBGCShared.MockGame.Globals.AnalyticsEventTypes)
 local GameOptionIds = require(SRBGCShared.MockGame.Globals.GameOptionIds)
 
 -- SRBGCServer
@@ -129,10 +129,12 @@ function ServerGameInstance:maybeSetWinner(): nil
             self.gameState.opt_winnerUserId = userId
 
             -- Do some analytics.
-            ServerGameAnalytics.addRecordOfType(self.tableDescription.gameId, self.tableDescription.gameInstanceGUID, AnalyticsEventNames.RecordTypeGameWin, {
-                winnerId = userId,
-                winnerIndex = index,
-                numPlayers = #self.gameState.playerIdsInTurnOrder,
+            ServerGameAnalytics.appendToGameRecord(self.tableDescription.gameInstanceGUID, AnalyticsEventTypes.GameWin, {
+                eventType = AnalyticsEventTypes.GameWin,
+                details = {
+                    winnerId = userId,
+                    winnerIndex = index,
+                },
             })
             return
         end
@@ -183,9 +185,12 @@ function ServerGameInstance:dieRoll(rollRequesterUserId: CommonTypes.UserId, die
     local actionDescription = makeDieRollActionDescription(currentPlayerUserId, dieType, dieRollResult)
 
     -- Do some analytics.
-    ServerGameAnalytics.addRecordOfType(self.tableDescription.gameId, self.tableDescription.gameInstanceGUID, AnalyticsEventNames.RecordTypeDieRoll, {
-        userId = currentPlayerUserId,
-        dieType = dieType,
+    ServerGameAnalytics.appendToGameRecord(self.tableDescription.gameInstanceGUID, AnalyticsEventTypes.DieRoll, {
+        eventType = AnalyticsEventTypes.DieRoll,
+        details = {
+            userId = currentPlayerUserId,
+            dieType = dieType,
+        }
     })
 
     -- Check for the end of the game.
