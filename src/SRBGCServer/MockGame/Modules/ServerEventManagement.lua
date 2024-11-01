@@ -26,7 +26,7 @@ local ServerEventManagement = {}
 
 ServerEventManagement.broadcastGameState = function(serverGameInstance:ServerTypes.ServerGameInstance, opt_actionDescription: GameTypes.ActionDescription?)
     local gameState = serverGameInstance:getGameState()
-    ServerEventUtils.sendEventForPlayersInGame(serverGameInstance.tableDescription, "GameUpdated", gameState, opt_actionDescription)
+    ServerEventUtils.sendEventToPlayersInGame(serverGameInstance.tableDescription, "GameUpdated", gameState, opt_actionDescription)
 end
 
 --[[

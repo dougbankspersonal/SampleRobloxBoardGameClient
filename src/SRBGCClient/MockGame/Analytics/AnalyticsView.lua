@@ -82,24 +82,23 @@ local function makeTable(parent: GuiObject, title:string, rows, numColumns)
     Utils.debugPrint("Analytics", "makeTable title = ", title)
     Utils.debugPrint("Analytics", "makeTable rows = ", rows)
     Utils.debugPrint("Analytics", "makeTable numColumns = ", numColumns)
-    local titleRow = GuiUtils.addRowAndReturnRowContent(parent, "TableTitle", {
-        horizontalAlignment = Enum.HorizontalAlignment.Left,
-    })
-
-    GuiUtils.addTextLabel(titleRow, title, {
+    GuiUtils.addTextLabel(parent, title, {
         Name = "Title",
         Font = Enum.Font.SourceSansBold,
         TextSize = 18,
     })
 
     for _, row in rows do
-        local thisRowContnet = GuiUtils.addRowAndReturnRowContent(parent, "TableRow", {
-            horizontalAlignment = Enum.HorizontalAlignment.Left,
+        local tableRow = GuiUtils.addRow(parent, "TableRow")
+        GuiUtils.addUIListLayout(tableRow, {
+            FillDirection = Enum.FillDirection.Horizontal,
+            HorizontalAlignment = Enum.HorizontalAlignment.Left,
+            VerticalAlignment = Enum.VerticalAlignment.Top,
         })
         for i = 1, numColumns do
            local message = row[i] or ""
            message = tostring(message)
-           GuiUtils.addTextLabel(thisRowContnet, message, {
+           GuiUtils.addTextLabel(tableRow, message, {
                Name = "Cell",
                Font = Enum.Font.SourceSans,
                TextSize = 14,
@@ -152,9 +151,7 @@ function AnalyticsView.renderAnalyticsRecords(gameId: CommonTypes.GameId, parent
         previous:Destroy()
     end
 
-    local rowContent = GuiUtils.addRowAndReturnRowContent(parent, rowName, {
-        horizontalAlignment = Enum.HorizontalAlignment.Left,
-    })
+    local row = GuiUtils.addRow(parent, rowName)
 
     Utils.debugPrint("Analytics", "renderAnalyticsRecords gameId = ", gameId)
     Utils.debugPrint("Analytics", "renderAnalyticsRecords nonDefaultGameOptions = ", nonDefaultGameOptions)
@@ -163,7 +160,7 @@ function AnalyticsView.renderAnalyticsRecords(gameId: CommonTypes.GameId, parent
     -- Put in a max size scrolling frame.
     local scrollingFrame = Instance.new("ScrollingFrame")
     scrollingFrame.Name = "AnalyticsScrollingFrame"
-    scrollingFrame.Parent = rowContent
+    scrollingFrame.Parent = row
     scrollingFrame.Size = UDim2.fromScale(1, 1)
     scrollingFrame.CanvasSize = UDim2.fromScale(0, 0)
     scrollingFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y

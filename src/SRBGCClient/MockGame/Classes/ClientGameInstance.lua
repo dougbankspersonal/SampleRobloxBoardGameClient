@@ -47,7 +47,7 @@ export type ClientGameInstance = {
     gameState: GameTypes.GameState,
     localUserId: CommonTypes.UserId,
     messageLog: MessageLog.MessageLog,
-    scoreRow: Frame,
+    userScoresRow: Frame,
     dieRollAnimationContent: TextLabel,
     buttonsByUserId: { [CommonTypes.UserId]: { TextButton } },
     scoreLabelsByUserId: { [CommonTypes.UserId]: TextLabel },
@@ -64,22 +64,23 @@ export type ClientGameInstance = {
     notifyThatHostEndedGame: (ClientGameInstance, CommonTypes.GameEndDetails) -> boolean,
     sanityCheck: (ClientGameInstance) -> nil,
 
-    -- Other "private" functions.
+    -- Public facing.
+    buildUIAsync: (ClientGameInstance, Frame) -> nil,
 
-    Async: (ClientGameInstance, Frame) -> nil,
+    -- Other "private" functions.
     buildUIInternal: (ClientGameInstance, Frame) -> nil,
     addDieRollAnimationSection: (ClientGameInstance, Frame) -> nil,
-    addScoreSection: (ClientGameInstance, Frame) -> nil,
-    maybeAddRowForUser: (ClientGameInstance, Frame, CommonTypes.UserId) -> Frame?,
-    addScoreForUser: (ClientGameInstance, CommonTypes.UserId) -> TextLabel,
+    addUserScoresRow: (ClientGameInstance, Frame) -> Frame,
+    maybeAddControlsRowForUser: (ClientGameInstance, Frame, CommonTypes.UserId) -> Frame?,
+    addUserScoreRow: (ClientGameInstance, Frame, CommonTypes.UserId) -> Frame,
     updateScores: (ClientGameInstance) -> nil,
     onGameStateUpdated: (ClientGameInstance, GameTypes.ActionDescription?) -> nil,
-    updateButtonActiveStates: (ClientGameInstance) -> nil,
+    updateButtonsActive: (ClientGameInstance) -> nil,
     displayNewTurnOrGameEnd: (ClientGameInstance) -> nil,
     notifyDieRollStart: (ClientGameInstance, CommonTypes.UserId, GameTypes.ActionDetailsDieRoll, () -> ()) -> nil,
     animateDieRoll: (ClientGameInstance, GameTypes.ActionDetailsDieRoll, () ->()) -> nil,
     notifyDieRollFinished: (GameTypes.ActionDetailsDieRoll, () -> ()) -> nil,
-    disableAllButtons: (ClientGameInstance) -> nil,
+    makeAllButtonsInactive: (ClientGameInstance) -> nil,
     getGameInstanceGUID: (ClientGameInstance) -> CommonTypes.GameInstanceGUID,
 }
 
@@ -89,7 +90,7 @@ local function addButtonForDie(gameInstanceGUID: CommonTypes.GameInstanceGUID, p
         ClientEventManagement.requestDieRoll(gameInstanceGUID, dieType)
     end
 
-    local _, button = GuiUtils.addStandardTextButtonInContainer(parent, GameUtils.getDieName(dieType), callback, {
+    local button = GuiUtils.addStandardTextButton(parent, GameUtils.getDieName(dieType), callback, {
         Name = GameUtils.getDieName(dieType),
         Active = false,
         LayoutOrder = 10 + dieType,
@@ -208,34 +209,48 @@ function ClientGameInstance.new(tableDescription: CommonTypes.TableDescription):
 end
 
 function ClientGameInstance:buildUIAsync(parent: Frame)
-    task.spawn(function()
-        self.gameState = ClientEventManagement.getGameStateAsync(self.tableDescription.gameInstanceGUID)
-        self:buildUIInternal(parent)
-    end)
+    self.gameState = ClientEventManagement.getGameStateAsync(self.tableDescription.gameInstanceGUID)
+    self:buildUIInternal(parent)
 end
 
 function ClientGameInstance:buildUIInternal(parent: Frame)
     assert(parent, "parent is nil")
-    self.localUserId = Players.LocalPlayer.UserId
 
+    GuiUtils.addStandardMainFramePadding(parent)
+    GuiUtils.addLayoutOrderGenerator(parent)
     GuiUtils.addUIListLayout(parent, {
         VerticalAlignment = Enum.VerticalAlignment.Top,
+        Padding = GuiConstants.betweenRowPadding,
     })
+
+    self.localUserId = Players.LocalPlayer.UserId
 
     self.messageLog = MessageLog.new(parent)
     self.messageLog.scrollingFrame.LayoutOrder = GuiUtils.getNextLayoutOrder(parent)
 
-    self:addScoreSection(parent)
+    self.userScoresRow = self:addUserScoresRow(parent)
 
     task.spawn(function()
         self.gameState = ClientEventManagement.getGameStateAsync(self.tableDescription.gameInstanceGUID)
 
+        local userScoreRows = {}
+        for _, userId in self.gameState.playerIdsInTurnOrder do
+            -- Always add a score for the user.
+            local userRow = self:addUserScoreRow(self.userScoresRow, userId)
+            table.insert(userScoreRows, userRow)
+        end
+
+        GuiUtils.alignAndAutoSizeLabeledRows(parent, userScoreRows)
+
+        local controlsRows = {}
         for _, userId in self.gameState.playerIdsInTurnOrder do
             -- Iff local player can act on this user's behalf, add controls for taking actions as this user.
-            self:maybeAddRowForUser(parent, userId)
-            -- Always add a score for the user.
-            self:addScoreForUser(userId)
+            local controlsRow = self:maybeAddControlsRowForUser(parent, userId)
+            if controlsRow then
+                table.insert(controlsRows, controlsRow)
+            end
         end
+        GuiUtils.alignAndAutoSizeLabeledRows(parent, controlsRows)
 
         self:addDieRollAnimationSection(parent)
 
@@ -251,6 +266,7 @@ function ClientGameInstance:addDieRollAnimationSection(parent: Frame)
     dieRollAnimationHolder.Parent = parent
     dieRollAnimationHolder.Size = UDim2.fromOffset(dieRollWidth, dieRollHeight)
     dieRollAnimationHolder.BackgroundTransparency = 1
+    dieRollAnimationHolder.LayoutOrder = GuiUtils.getNextLayoutOrder(parent)
 
     self.dieRollAnimationContent = Instance.new("TextLabel")
     self.dieRollAnimationContent.Name = "DieRollAnimationContent"
@@ -267,49 +283,84 @@ function ClientGameInstance:addDieRollAnimationSection(parent: Frame)
     uiScale.Parent = self.dieRollAnimationContent
 end
 
-function ClientGameInstance:addScoreSection(parent: Frame)
+function ClientGameInstance:addUserScoresRow(parent: Frame): Frame
     assert(parent, "parent is nil")
-    self.scoreRow = GuiUtils.addRow(parent, "ScoreRow")
+    local userScoresRow = GuiUtils.addRow(parent, "ScoreRow")
+    GuiUtils.addUIListLayout(userScoresRow)
+    GuiUtils.addLayoutOrderGenerator(userScoresRow)
+    return userScoresRow
 end
 
-function ClientGameInstance:maybeAddRowForUser(parent: Frame, userId: CommonTypes.UserId): Frame?
+
+local function rightHandContentMakerForControlRow(clientGameInstance: ClientGameInstance, parent: GuiObject, userId: CommonTypes.UserId): GuiObject
+    local rightHandContent = GuiUtils.addRightHandContentFrameForRow(parent)
+
+    GuiUtils.addUIListLayout(rightHandContent, {
+        FillDirection = Enum.FillDirection.Horizontal,
+        HorizontalAlignment = Enum.HorizontalAlignment.Left,
+        VerticalAlignment = Enum.VerticalAlignment.Top,
+    })
+
+    clientGameInstance.buttonsByUserId[userId] = {}
+    for _, dieType in DieTypes.Types do
+        local textButton = addButtonForDie(clientGameInstance.tableDescription.gameInstanceGUID, rightHandContent, dieType)
+        table.insert(clientGameInstance.buttonsByUserId[userId], textButton)
+
+
+
+        -- Just for debugging.
+        textButton:GetPropertyChangedSignal("Active"):Connect(function()
+            Utils.debugPrint("GamePlay", "DEBUG textButton.Name = ", textButton.Name)
+            Utils.debugPrint("GamePlay", "DEBUG textButton.Active = ", textButton.Active)
+            Utils.debugPrint("GamePlay", "stackTrace = ", debug.traceback())
+        end)
+    end
+    Utils.debugPrint("GamePlay", "rightHandContentMakerForControlRow self.buttonsByUserId) = ", clientGameInstance.buttonsByUserId)
+
+    return rightHandContent
+end
+
+function ClientGameInstance:maybeAddControlsRowForUser(parent: Frame, userId: CommonTypes.UserId): Frame?
     if not Utils.firstUserCanPlayAsSecondUser(self.tableDescription, self.localUserId, userId) then
-        return
+        return nil
     end
 
-    local row = GuiUtils.addLabeledRow(parent, "UserRow", "Roll for " .. PlayerUtils.getName(userId), function(_parent)
-        GuiUtils.addUIListLayout(_parent, {
-            FillDirection = Enum.FillDirection.Horizontal,
-            HorizontalAlignment = Enum.HorizontalAlignment.Left,
-            VerticalAlignment = Enum.VerticalAlignment.Top,
-        })
-        self.buttonsByUserId[userId] = {}
-        for _, dieType in DieTypes.Types do
-            local textButton = addButtonForDie(self.tableDescription.gameInstanceGUID, _parent, dieType)
-            table.insert(self.buttonsByUserId[userId], textButton)
-        end
+    local labelText = "Roll for " .. PlayerUtils.getName(userId)
+    local row = GuiUtils.addLabeledRow(parent, "UserRow", labelText, function(_parent)
+        return rightHandContentMakerForControlRow(self, _parent, userId)
     end)
 
     return row
 end
 
-function ClientGameInstance:addScoreForUser(userId: CommonTypes.UserId): TextLabel
-    local row = GuiUtils.addRow(self.scoreRow, "ScoreRow" .. userId)
-    local userName = PlayerUtils.getName(userId)
-    GuiUtils.addTextLabel(row, GuiUtils.bold(userName), {
-        Name = "UserName",
-        RichText = true,
-        AutomaticSize = Enum.AutomaticSize.XY,
-        Size = UDim2.fromScale(0, 0),
+local function rightHandContentMakerForScoreRow(clientGameInstance: ClientGameInstance, parent: GuiObject, userId: CommonTypes.UserId): GuiObject
+    local rightHandContent = GuiUtils.addRightHandContentFrameForRow(parent)
+
+    GuiUtils.addUIListLayout(rightHandContent, {
+        FillDirection = Enum.FillDirection.Horizontal,
+        HorizontalAlignment = Enum.HorizontalAlignment.Left,
+        VerticalAlignment = Enum.VerticalAlignment.Top,
     })
-    local scoreLabel = GuiUtils.addTextLabel(row, "0", {
+
+    local scoreLabel = GuiUtils.addTextLabel(rightHandContent, "0", {
         Name = "Score",
         RichText = true,
         AutomaticSize = Enum.AutomaticSize.XY,
         Size = UDim2.fromScale(0, 0),
     })
-    self.scoreLabelsByUserId[userId] = scoreLabel
-    return scoreLabel
+    clientGameInstance.scoreLabelsByUserId[userId] = scoreLabel
+
+    return rightHandContent
+end
+
+function ClientGameInstance:addUserScoreRow(parent: Frame, userId: CommonTypes.UserId): TextLabel
+    local rowId = "ScoreRow" .. userId
+    local rowLabel = PlayerUtils.getName(userId)
+    local row = GuiUtils.addLabeledRow(parent, rowId, rowLabel, function(_parent)
+        return rightHandContentMakerForScoreRow(self, _parent, userId)
+    end)
+
+    return row
 end
 
 function ClientGameInstance:updateScores()
@@ -323,13 +374,12 @@ end
 local waitTime = GuiConstants.messageQueueTransparencyTweenTime + GuiConstants.scrollingFrameSlideTweenTime
 
 function ClientGameInstance:onGameStateUpdated(opt_actionDescription: GameTypes.ActionDescription?)
-    Utils.debugPrint("MessageLog", "onGameStateUpdated 001")
-
+    Utils.debugPrint("GamePlay", "onGameStateUpdated 001")
     -- if there's a description, first play it out/animate it.
     if opt_actionDescription then
-        Utils.debugPrint("MessageLog", "onGameStateUpdated 002")
+        Utils.debugPrint("GamePlay", "onGameStateUpdated 002")
         -- Disable controls while animating.
-        self:disableAllButtons()
+        self:makeAllButtonsInactive()
 
         local actionType = opt_actionDescription.actionType
         local actorUserId = opt_actionDescription.actorUserId
@@ -337,18 +387,18 @@ function ClientGameInstance:onGameStateUpdated(opt_actionDescription: GameTypes.
         assert(actionType, "actionType is nil")
         assert(actionDetails, "actionDetails is nil")
 
-        Utils.debugPrint("MessageLog", "onGameStateUpdated 003")
+        Utils.debugPrint("GamePlay", "onGameStateUpdated 003")
         if actionType == ActionTypes.DieRoll then
-            Utils.debugPrint("MessageLog", "onGameStateUpdated calling notifyDieRollStart")
+            Utils.debugPrint("GamePlay", "onGameStateUpdated calling notifyDieRollStart")
             self:notifyDieRollStart(actorUserId, actionDetails, function()
                 task.wait(waitTime)
-                Utils.debugPrint("MessageLog", "onGameStateUpdated calling animateDieRoll")
+                Utils.debugPrint("GamePlay", "onGameStateUpdated calling animateDieRoll")
                 self:animateDieRoll(actionDetails, function()
                     task.wait(waitTime)
-                    Utils.debugPrint("MessageLog", "onGameStateUpdated calling notifyDieRollFinished")
+                    Utils.debugPrint("GamePlay", "onGameStateUpdated calling notifyDieRollFinished")
                     self:notifyDieRollFinished(actorUserId, actionDetails, function()
                         task.wait(waitTime)
-                        Utils.debugPrint("MessageLog", "onGameStateUpdated calling updateScores")
+                        Utils.debugPrint("GamePlay", "onGameStateUpdated calling updateScores")
                         self:updateScores()
 
                         -- Give everyone a second to digest this.
@@ -364,15 +414,23 @@ function ClientGameInstance:onGameStateUpdated(opt_actionDescription: GameTypes.
     end
 end
 
-function ClientGameInstance:updateButtonActiveStates()
+function ClientGameInstance:updateButtonsActive()
     local currentPlayerId = GameState.getCurrentPlayerUserId(self.gameState)
-    for userId, buttonSet in pairs(self.buttonsByUserId) do
+    Utils.debugPrint("GamePlay", "updateButtonsActive currentPlayerId = ", currentPlayerId)
+    Utils.debugPrint("GamePlay", "updateButtonsActive self.buttonsByUserId) = ", self.buttonsByUserId)
+    Utils.debugPrint("GamePlay", "poop")
+    for userId, buttonSet in self.buttonsByUserId do
         local canPlay = false
+        Utils.debugPrint("GamePlay", "userId = ", userId)
+        Utils.debugPrint("GamePlay", "buttonSet = ", buttonSet)
+        Utils.debugPrint("GamePlay", "001 canPlay = ", canPlay)
         if not self.gameState.opt_winnerUserId then
             if userId == currentPlayerId then
                 canPlay = Utils.firstUserCanPlayAsSecondUser(self.tableDescription, self.localUserId, userId)
+                Utils.debugPrint("GamePlay", "002 canPlay = ", canPlay)
             end
         end
+        Utils.debugPrint("GamePlay", "003 canPlay = ", canPlay)
         for _, button in buttonSet do
             button.Active = canPlay
         end
@@ -393,8 +451,8 @@ function ClientGameInstance:displayNewTurnOrGameEnd()
     end
     self.messageLog:enqueueMessage(message)
 
-    -- Update all the buttons.
-    self:updateButtonActiveStates()
+    -- Update which buttons are active.
+    self:updateButtonsActive()
 end
 
 function ClientGameInstance:notifyDieRollStart(actorUserId: CommonTypes.UserId, actionDetailsDieRoll: GameTypes.ActionDetailsDieRoll, onNotificationShown: () -> ())
@@ -442,7 +500,8 @@ function ClientGameInstance:notifyDieRollFinished(actorUserId:CommonTypes.UserId
     self.messageLog:enqueueMessage(_message, onNotifyFinished)
 end
 
-function ClientGameInstance:disableAllButtons()
+function ClientGameInstance:makeAllButtonsInactive()
+    Utils.debugPrint("GamePlay", "makeAllButtonsInactive self.buttonsByUserId) = ", self.buttonsByUserId)
     for _, buttonSet in pairs(self.buttonsByUserId) do
         for _, button in buttonSet do
             button.Active = false

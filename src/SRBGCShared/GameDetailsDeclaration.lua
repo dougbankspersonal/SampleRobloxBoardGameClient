@@ -18,6 +18,25 @@ local mockGameOptions = {
         gameOptionId = GameOptionIds.EvaluateAtEndOfRound,
         description = "Wait until a round is over until evaluating the game end",
     },
+    {
+        name = "Mock Option With Variants",
+        gameOptionId = GameOptionIds.MockOptionWithVariants,
+        description = "Just a mock to exercise the UI",
+        opt_variants = {
+            {
+                name = "Variant 1",
+                description = "Variant 1 description",
+            },
+            {
+                name = "Variant 2",
+                description = "Variant 2 description",
+            },
+            {
+                name = "Variant 3",
+                description = "Variant 3 description",
+            },
+        },
+    },
 }
 
 local gameDetailsByGameId: CommonTypes.GameDetailsByGameId = {}

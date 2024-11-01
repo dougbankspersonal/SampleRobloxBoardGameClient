@@ -27,7 +27,9 @@ ClientGameInstanceFunctionsDeclaration.addMockGames = function()
         clientGameInstanceFunctionsByGameId[gameId] = {
             makeClientGameInstanceAsync = function(tableDescription, parentFrame)
                 local cgi = ClientGameInstance.new(tableDescription)
-                cgi:buildUIAsync(parentFrame)
+                task.spawn(function()
+                    cgi:buildUIAsync(parentFrame)
+                end)
                 return cgi
             end,
             getClientGameInstance = ClientGameInstance.get,
